@@ -52,7 +52,7 @@ public:
   downloadCb(const shared_ptr<RequestState>& state)
   {
     std::cerr << "Step " << nStep++
-              << "DONE! Certificate has already been installed to local keychain\n";
+              << " DONE! Certificate has already been installed to local keychain\n";
     return;
   }
 
@@ -136,6 +136,15 @@ public:
   void
   validateCb(const shared_ptr<RequestState>& state)
   {
+    //---Download certificate for no-challenge option, no PIN code verification was performed
+    if (state->m_challengeType == "NOCHALL") {
+      std::cerr << "DONE! Certificate has already been issued \n";
+      client.requestDownload(state,
+                             bind(&ClientTool::downloadCb, this, _1),
+                             bind(&ClientTool::errorCb, this, _1));
+      return;
+    }
+
     if (state->m_status == ChallengeModule::SUCCESS) {
       std::cerr << "DONE! Certificate has already been issued \n";
       client.requestDownload(state,
@@ -169,15 +178,23 @@ public:
     auto challenge = ChallengeModule::createChallengeModule(state->m_challengeType);
     auto requirementList = challenge->getRequirementForValidate(state->m_status);
 
-    std::cerr << "Step " << nStep++ << ": Please satisfy following instruction(s)" << std::endl;
+    if (state->m_challengeType != "NOCHALL") {
+    	std::cerr << "Step " << nStep++ << ": Please satisfy following instruction(s)" << std::endl;
+    }
     for (auto item : requirementList) {
       std::cerr << "\t" << item << std::endl;
     }
     std::list<std::string> paraList;
     for (size_t i = 0; i < requirementList.size(); i++) {
-      std::string tempParam;
-      getline(std::cin, tempParam);
-      paraList.push_back(tempParam);
+      if (state->m_status == "no-code") {
+        //---Bypass user input for PIN code 
+	paraList.push_back("00000");
+      }
+      else {
+      	std::string tempParam;
+      	getline(std::cin, tempParam);
+      	paraList.push_back(tempParam);
+      }
     }
 
     auto paramJson = challenge->genValidateParamsJson(state->m_status, paraList);
