@@ -45,7 +45,6 @@ ChallengePin::ChallengePin(const size_t& maxAttemptTimes, const time::seconds& s
   , m_secretLifetime(secretLifetime)
   , m_maxAttemptTimes(maxAttemptTimes)
 {
-std::cout << "INSIDE DEFAULT CONSTRUCTOR FOR PIN CHALL" << std::endl;
 }
 
 JsonSection
