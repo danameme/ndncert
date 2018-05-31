@@ -492,6 +492,15 @@ ClientModule::onNack(const Interest& interest, const lp::Nack& nack, const Error
   if (nack.getReason() == lp::NackReason::DUPLICATE) {
   	errorCallback("CA already issued certificate for requested namespace");
   }
+  else if (nack.getReason() == lp::NackReason::CONGESTION) {
+        errorCallback("Got Nack: CONGESTION");
+  }
+  else if (nack.getReason() == lp::NackReason::NO_ROUTE) {
+        errorCallback("Got Nack: NO_ROUTE");
+  }
+  else if (nack.getReason() == lp::NackReason::NONE) {
+        errorCallback("Got Nack: NONE");
+  }
   else {
   	errorCallback("Got Nack");
   }
