@@ -489,7 +489,12 @@ ClientModule::onTimeout(const Interest& interest, int nRetriesLeft, const DataCa
 void
 ClientModule::onNack(const Interest& interest, const lp::Nack& nack, const ErrorCallback& errorCallback)
 {
-  errorCallback("Got Nack");
+  if (nack.getReason() == lp::NackReason::DUPLICATE) {
+  	errorCallback("CA already issued certificate for requested namespace");
+  }
+  else {
+  	errorCallback("Got Nack");
+  }
 }
 
 JsonSection

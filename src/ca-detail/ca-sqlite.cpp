@@ -138,7 +138,8 @@ CaSqlite::addRequest(const CertificateRequest& request)
     BOOST_THROW_EXCEPTION(Error("Request for " + request.getCert().getKeyName().toUri() + " already exists"));
     return;
   }
-  
+
+  //Check for case where certificate is already issued for same namespace
   CaSqlite storage;
   std::string requestIdentityName = request.getCert().getIdentity().toUri();
   std::list<security::v2::Certificate> certList;
@@ -150,10 +151,8 @@ CaSqlite::addRequest(const CertificateRequest& request)
       BOOST_THROW_EXCEPTION(Error("Namespace for " + request.getCert().getIdentity().toUri() + " already exists"));
       return;
     }
-    
+  
   }
-
-
 
   Sqlite3Statement statement2(m_database,
                              R"_SQLTEXT_(SELECT * FROM IssuedCerts where cert_key_name = ?)_SQLTEXT_");
