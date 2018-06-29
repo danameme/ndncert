@@ -33,6 +33,7 @@ namespace ndn {
 namespace ndncert {
 
 int nStep;
+std::string m_challenge;
 
 class ClientTool
 {
@@ -206,12 +207,15 @@ public:
   void
   newCb(const shared_ptr<RequestState>& state)
   {
-    std::cerr << "Step " << nStep++ << ": Please select one challenge from following types\n";
-    for (auto item : state->m_challengeList) {
-      std::cerr << "\t" << item << std::endl;
-    }
+    //---Remove interruptive prompt
+    //std::cerr << "Step " << nStep++ << ": Please select one challenge from following types\n";
+    //for (auto item : state->m_challengeList) {
+      //std::cerr << "\t" << item << std::endl;
+    //}
     std::string choice;
-    getline(std::cin, choice);
+    //---Remove interruptive prompt
+    //getline(std::cin, choice);
+    choice = m_challenge;
 
     auto challenge = ChallengeModule::createChallengeModule(choice);
     auto requirementList = challenge->getRequirementForSelect();
@@ -240,6 +244,10 @@ public:
 int
 main(int argc, char* argv[])
 {
+  //---Set the challenege thype as a global variable
+  m_challenge = argv[3];
+
+
   namespace po = boost::program_options;
   std::string configFilePath = std::string(SYSCONFDIR) + "/ndncert/client.conf";
   bool isIntra = false;
@@ -259,8 +267,9 @@ main(int argc, char* argv[])
     po::notify(vm);
   }
   catch (const std::exception& e) {
-    std::cerr << "ERROR: " << e.what() << std::endl;
-    return 1;
+    //---Allow command line arguments
+    //std::cerr << "ERROR: " << e.what() << std::endl;
+    //return 1; 
   }
   if (vm.count("help") != 0) {
     std::cerr << description << std::endl;
@@ -289,19 +298,24 @@ main(int argc, char* argv[])
                     << "***************************************\n";
         }
         std::vector<ClientCaItem> caVector{std::begin(caList), std::end(caList)};
-        std::cerr << "Step " << nStep++
-                  << ": Please type in the CA namespace index that you want to apply\n";
+        //---Remove interruptive prompt
+        //std::cerr << "Step " << nStep++ << ": Please type in the CA namespace index that you want to apply\n";
         std::string caIndexS;
-        getline(std::cin, caIndexS);
+        //---Remove interruptive prompt
+        //getline(std::cin, caIndexS);
+        caIndexS = argv[1];
         int caIndex = std::stoi(caIndexS);
 
         BOOST_ASSERT(caIndex <= count);
 
         auto targetCaItem = caVector[caIndex];
         if (targetCaItem.m_probe != "") {
-          std::cerr << "Step " << nStep++ << ": Probe Requirement-" << targetCaItem.m_probe << std::endl;
+	  //---Remove interruptive prompt
+          //std::cerr << "Step " << nStep++ << ": Probe Requirement-" << targetCaItem.m_probe << std::endl;
           std::string probeInfo;
-          getline(std::cin, probeInfo);
+	  //---Remove interruptive prompt
+          //getline(std::cin, probeInfo);
+	  probeInfo = argv[2];
           client.sendProbe(targetCaItem, probeInfo,
                            bind(&ClientTool::newCb, &tool, _1),
                            bind(&ClientTool::errorCb, &tool, _1));
@@ -332,10 +346,13 @@ main(int argc, char* argv[])
                 << "***************************************\n";
     }
     std::vector<ClientCaItem> caVector{std::begin(caList), std::end(caList)};
-    std::cerr << "Step " << nStep++ << ": Please type in the CA namespace index that you want to apply\n";
+    //---Remove interruptive prompt
+    //std::cerr << "Step " << nStep++ << ": Please type in the CA namespace index that you want to apply\n";
 
     std::string caIndexS;
-    getline(std::cin, caIndexS);
+    //---Remove interruptive prompt
+    //getline(std::cin, caIndexS);
+    caIndexS = argv[1];
     int caIndex = std::stoi(caIndexS);
     BOOST_ASSERT(caIndex <= count);
     auto targetCaItem = caVector[caIndex];
@@ -371,9 +388,12 @@ main(int argc, char* argv[])
     }
     if (!listFirst) {
       if (targetCaItem.m_probe != "") {
-        std::cerr << "Step " << nStep++ << ": Probe Requirement-" << targetCaItem.m_probe << std::endl;
+	//---Remove interruptive prompt
+        //std::cerr << "Step " << nStep++ << ": Probe Requirement-" << targetCaItem.m_probe << std::endl;
         std::string probeInfo;
-        getline(std::cin, probeInfo);
+	//---Remove interruptive prompt
+        //getline(std::cin, probeInfo);
+	probeInfo = argv[2];
         client.sendProbe(targetCaItem, probeInfo,
                          bind(&ClientTool::newCb, &tool, _1),
                          bind(&ClientTool::errorCb, &tool, _1));
