@@ -108,3 +108,9 @@ def build(bld):
         INCLUDEDIR   = "%s/ndncert" % bld.env['INCLUDEDIR'],
         VERSION      = VERSION,
         )
+
+    bld.shlib(source=[
+		"tools/ndncert-client.cpp",
+		"tools/c-wrapper.cpp"], 
+		target="clientcwrapper", includes=["tools"], cxxflags="-g -Wall -O0", 
+		use=["ndn-cert"])

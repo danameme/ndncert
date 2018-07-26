@@ -20,6 +20,8 @@
 
 #include "client-module.hpp"
 #include "challenge-module.hpp"
+#include "invoke-client.hpp"
+
 
 #include <iostream>
 #include <string>
@@ -29,11 +31,16 @@
 #include <boost/program_options/parsers.hpp>
 #include <ndn-cxx/security/verification-helpers.hpp>
 
+
+//Declare function parameters as global variables
+std::string m_index;
+std::string m_namespace;
+std::string m_challenge;
+
 namespace ndn {
 namespace ndncert {
 
 int nStep;
-std::string m_challenge;
 
 class ClientTool
 {
@@ -242,11 +249,8 @@ public:
 };
 
 int
-main(int argc, char* argv[])
+main_entry()
 {
-  //---Set the challenege thype as a global variable
-  m_challenge = argv[3];
-
 
   namespace po = boost::program_options;
   std::string configFilePath = std::string(SYSCONFDIR) + "/ndncert/client.conf";
@@ -262,15 +266,19 @@ main(int argc, char* argv[])
   po::positional_options_description p;
 
   po::variables_map vm;
+
+/* Disables command line argument parser
   try {
-    po::store(po::command_line_parser(argc, argv).options(description).positional(p).run(), vm);
-    po::notify(vm);
+    //po::store(po::command_line_parser(argc, argv).options(description).positional(p).run(), vm);
+    //po::notify(vm);
   }
   catch (const std::exception& e) {
     //---Allow command line arguments
     //std::cerr << "ERROR: " << e.what() << std::endl;
     //return 1; 
   }
+*/
+
   if (vm.count("help") != 0) {
     std::cerr << description << std::endl;
     return 0;
@@ -303,7 +311,7 @@ main(int argc, char* argv[])
         std::string caIndexS;
         //---Remove interruptive prompt
         //getline(std::cin, caIndexS);
-        caIndexS = argv[1];
+        caIndexS = m_index;
         int caIndex = std::stoi(caIndexS);
 
         BOOST_ASSERT(caIndex <= count);
@@ -315,7 +323,7 @@ main(int argc, char* argv[])
           std::string probeInfo;
 	  //---Remove interruptive prompt
           //getline(std::cin, probeInfo);
-	  probeInfo = argv[2];
+	  probeInfo = m_namespace;
           client.sendProbe(targetCaItem, probeInfo,
                            bind(&ClientTool::newCb, &tool, _1),
                            bind(&ClientTool::errorCb, &tool, _1));
@@ -352,7 +360,7 @@ main(int argc, char* argv[])
     std::string caIndexS;
     //---Remove interruptive prompt
     //getline(std::cin, caIndexS);
-    caIndexS = argv[1];
+    caIndexS = m_index;
     int caIndex = std::stoi(caIndexS);
     BOOST_ASSERT(caIndex <= count);
     auto targetCaItem = caVector[caIndex];
@@ -393,7 +401,7 @@ main(int argc, char* argv[])
         std::string probeInfo;
 	//---Remove interruptive prompt
         //getline(std::cin, probeInfo);
-	probeInfo = argv[2];
+	probeInfo = m_namespace;
         client.sendProbe(targetCaItem, probeInfo,
                          bind(&ClientTool::newCb, &tool, _1),
                          bind(&ClientTool::errorCb, &tool, _1));
@@ -415,10 +423,26 @@ main(int argc, char* argv[])
   return 0;
 }
 
+
 } // namespace ndncert
 } // namespace ndn
 
+
+//Define class method that starts client's main function call
+InvokeClient::InvokeClient() {
+}
+
+int InvokeClient::CallClientMain(std::string p_index, std::string p_namespace, std::string p_challenge) {
+
+        m_index = p_index;
+        m_namespace = p_namespace;
+        m_challenge = p_challenge;
+	return ndn::ndncert::main_entry();
+}
+//End of class method definitions
+
 int main(int argc, char* argv[])
 {
-  return ndn::ndncert::main(argc, argv);
+	InvokeClient cl;
+	return cl.CallClientMain("0", "nmop5", "NOCHALL");
 }
