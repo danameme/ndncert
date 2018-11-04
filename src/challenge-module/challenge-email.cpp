@@ -20,7 +20,7 @@
 
 #include "challenge-email.hpp"
 #include "../logging.hpp"
-#include <boost/regex.hpp>
+#include <regex>
 
 namespace ndn {
 namespace ndncert {
@@ -179,9 +179,9 @@ ChallengeEmail::generateStoredSecrets(const time::system_clock::TimePoint& tp,
 bool
 ChallengeEmail::isValidEmailAddress(const std::string& emailAddress)
 {
-  std::string pattern = R"_REGEX_((^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+.[a-zA-Z0-9\-\.]+$))_REGEX_";
-  boost::regex emailPattern(pattern);
-  return boost::regex_match(emailAddress, emailPattern);
+  const std::string pattern = R"_REGEX_((^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+.[a-zA-Z0-9\-\.]+$))_REGEX_";
+  static const std::regex emailPattern(pattern);
+  return std::regex_match(emailAddress, emailPattern);
 }
 
 void
