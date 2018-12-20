@@ -33,8 +33,9 @@
 
 
 //Declare function parameters as global variables
-std::string m_index;
-std::string m_namespace;
+int m_index = 0;
+std::string m_ca_prefix;
+std::string m_user_identity;
 std::string m_challenge;
 
 namespace ndn {
@@ -299,20 +300,28 @@ main_entry()
         auto caList = config.m_caItems;
         int count = 0;
         for (auto item : caList) {
+
+	  int pref_len = item.m_caName.toUri().size();
+          std::string pref_name = item.m_caName.toUri();
+          if (m_ca_prefix == pref_name.substr(0,pref_len-3)) {
+                m_index = count;
+          }
+
           std::cerr << "***************************************\n"
                     << "Index: " << count++ << "\n"
                     << "CA prefix:" << item.m_caName << "\n"
                     << "Introduction: " << item.m_caInfo << "\n"
                     << "***************************************\n";
+
         }
         std::vector<ClientCaItem> caVector{std::begin(caList), std::end(caList)};
         //---Remove interruptive prompt
         //std::cerr << "Step " << nStep++ << ": Please type in the CA namespace index that you want to apply\n";
-        std::string caIndexS;
+        
         //---Remove interruptive prompt
         //getline(std::cin, caIndexS);
-        caIndexS = m_index;
-        int caIndex = std::stoi(caIndexS);
+        
+        int caIndex = m_index;
 
         BOOST_ASSERT(caIndex <= count);
 
@@ -323,7 +332,7 @@ main_entry()
           std::string probeInfo;
 	  //---Remove interruptive prompt
           //getline(std::cin, probeInfo);
-	  probeInfo = m_namespace;
+	  probeInfo = m_user_identity;
           client.sendProbe(targetCaItem, probeInfo,
                            bind(&ClientTool::newCb, &tool, _1),
                            bind(&ClientTool::errorCb, &tool, _1));
@@ -341,12 +350,19 @@ main_entry()
       },
       bind(&ClientTool::errorCb, &tool, _1));
   }
-  else {
+  else {    
     // Inter-node Application
     bool listFirst = false;
     auto caList = client.getClientConf().m_caItems;
     int count = 0;
     for (auto item : caList) {
+
+      int pref_len = item.m_caName.toUri().size();
+      std::string pref_name = item.m_caName.toUri();
+      if (m_ca_prefix == pref_name.substr(0,pref_len-3)) {
+        m_index = count;
+      }
+
       std::cerr << "***************************************\n"
                 << "Index: " << count++ << "\n"
                 << "CA prefix:" << item.m_caName << "\n"
@@ -356,12 +372,11 @@ main_entry()
     std::vector<ClientCaItem> caVector{std::begin(caList), std::end(caList)};
     //---Remove interruptive prompt
     //std::cerr << "Step " << nStep++ << ": Please type in the CA namespace index that you want to apply\n";
-
-    std::string caIndexS;
+    
     //---Remove interruptive prompt
     //getline(std::cin, caIndexS);
-    caIndexS = m_index;
-    int caIndex = std::stoi(caIndexS);
+    
+    int caIndex = m_index;
     BOOST_ASSERT(caIndex <= count);
     auto targetCaItem = caVector[caIndex];
 
@@ -401,7 +416,7 @@ main_entry()
         std::string probeInfo;
 	//---Remove interruptive prompt
         //getline(std::cin, probeInfo);
-	probeInfo = m_namespace;
+	probeInfo = m_user_identity;
         client.sendProbe(targetCaItem, probeInfo,
                          bind(&ClientTool::newCb, &tool, _1),
                          bind(&ClientTool::errorCb, &tool, _1));
@@ -432,10 +447,10 @@ main_entry()
 InvokeClient::InvokeClient() {
 }
 
-int InvokeClient::CallClientMain(std::string p_index, std::string p_namespace, std::string p_challenge) {
+int InvokeClient::CallClientMain(std::string p_ca_prefix, std::string p_user_identity, std::string p_challenge) {
 
-        m_index = p_index;
-        m_namespace = p_namespace;
+	m_ca_prefix = p_ca_prefix;
+        m_user_identity = p_user_identity;
         m_challenge = p_challenge;
 	return ndn::ndncert::main_entry();
 }
@@ -444,5 +459,5 @@ int InvokeClient::CallClientMain(std::string p_index, std::string p_namespace, s
 int main(int argc, char* argv[])
 {
 	InvokeClient cl;
-	return cl.CallClientMain("0", "nmop5", "NOCHALL");
+	return cl.CallClientMain("/ndn", "nmop4", "NOCHALL");
 }

@@ -9,7 +9,7 @@ class InvokeClient {
 
 	public:
 		InvokeClient();
-		int CallClientMain(std::string p_index, std::string p_namespace, std::string p_challenge);
+		int CallClientMain(std::string p_ca_prefix, std::string p_user_identity, std::string p_challenge);
 
 };
 #endif
