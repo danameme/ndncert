@@ -22,7 +22,6 @@
 #include "challenge-module.hpp"
 #include "invoke-client.hpp"
 
-
 #include <iostream>
 #include <string>
 
@@ -30,7 +29,7 @@
 #include <boost/program_options/variables_map.hpp>
 #include <boost/program_options/parsers.hpp>
 #include <ndn-cxx/security/verification-helpers.hpp>
-
+#include <ndn-cxx/util/io.hpp>
 
 //Declare function parameters as global variables
 int m_index = 0;
@@ -55,6 +54,13 @@ public:
   errorCb(const std::string& errorInfo)
   {
     std::cerr << "Error: " << errorInfo << std::endl;
+  }
+
+  void
+  certCb(const Certificate& cert)
+  {
+    //Retrieved CA certificate to use for <Data> packet verfications
+    //io::save(targetCaItem.m_anchor,std::cout);
   }
 
   void
@@ -312,7 +318,6 @@ main_entry()
                     << "CA prefix:" << item.m_caName << "\n"
                     << "Introduction: " << item.m_caInfo << "\n"
                     << "***************************************\n";
-
         }
         std::vector<ClientCaItem> caVector{std::begin(caList), std::end(caList)};
         //---Remove interruptive prompt
@@ -322,10 +327,15 @@ main_entry()
         //getline(std::cin, caIndexS);
         
         int caIndex = m_index;
-
         BOOST_ASSERT(caIndex <= count);
-
         auto targetCaItem = caVector[caIndex];
+
+	//Get CA certificate to use for <Data> packet verifications
+	client.sendCert(targetCaItem,
+                           bind(&ClientTool::newCb, &tool, _1),
+                           bind(&ClientTool::errorCb, &tool, _1),
+			   bind(&ClientTool::certCb, &tool, _1));
+
         if (targetCaItem.m_probe != "") {
 	  //---Remove interruptive prompt
           //std::cerr << "Step " << nStep++ << ": Probe Requirement-" << targetCaItem.m_probe << std::endl;
@@ -350,7 +360,7 @@ main_entry()
       },
       bind(&ClientTool::errorCb, &tool, _1));
   }
-  else {    
+  else {
     // Inter-node Application
     bool listFirst = false;
     auto caList = client.getClientConf().m_caItems;
@@ -379,6 +389,12 @@ main_entry()
     int caIndex = m_index;
     BOOST_ASSERT(caIndex <= count);
     auto targetCaItem = caVector[caIndex];
+
+    //Get CA certificate to use for <Data> packet verifications
+    client.sendCert(targetCaItem,
+                           bind(&ClientTool::newCb, &tool, _1),
+                           bind(&ClientTool::errorCb, &tool, _1),
+			   bind(&ClientTool::certCb, &tool, _1));
 
     if (targetCaItem.m_isListEnabled) {
       std::cerr << "This CA provides several sub-namepace CAs \n"
@@ -459,5 +475,5 @@ int InvokeClient::CallClientMain(std::string p_ca_prefix, std::string p_user_ide
 int main(int argc, char* argv[])
 {
 	InvokeClient cl;
-	return cl.CallClientMain("/ndn", "nmop4", "NOCHALL");
+	return cl.CallClientMain("/ndn", "nmcs11", "NOCHALL");
 }

@@ -31,6 +31,7 @@ namespace ndncert {
 
 _LOG_INIT(ndncert.client);
 
+
 ClientModule::ClientModule(Face& face, security::v2::KeyChain& keyChain, size_t retryTimes)
   : m_face(face)
   , m_keyChain(keyChain)
@@ -118,7 +119,7 @@ ClientModule::handleListResponse(const Interest& request, const Data& reply,
                                  const ListCallback& listCallback,
                                  const ErrorCallback& errorCallback)
 {
-  if (!security::verifySignature(reply, ca.m_anchor)) {
+  if (!security::verifySignature(reply, m_ca_certificate /*ca.m_anchor*/)) {
     errorCallback("Cannot verify data from " + ca.m_caName.toUri());
     return;
   };
@@ -147,6 +148,56 @@ ClientModule::handleListResponse(const Interest& request, const Data& reply,
 }
 
 void
+ClientModule::sendCert(const ClientCaItem& ca,
+                        const RequestCallback& requestCallback,
+                        const ErrorCallback& errorCallback,
+			const CertCallback& certCallback)
+{
+  Interest interest(Name(ca.m_caName).append("_CERT"));
+  interest.setMustBeFresh(true);
+  DataCallback dataCb = bind(&ClientModule::handleCertResponse,
+                             this, _1, _2, ca, requestCallback, errorCallback, certCallback);
+  m_face.expressInterest(interest, dataCb,
+                         bind(&ClientModule::onNack, this, _1, _2, errorCallback),
+                         bind(&ClientModule::onTimeout, this, _1, m_retryTimes,
+                              dataCb, errorCallback));
+
+  _LOG_TRACE("CERT interest sent to retrieve CA certificate ");
+}
+
+void
+ClientModule::handleCertResponse(const Interest& request, const Data& reply,
+                                  const ClientCaItem& ca,
+                                  const RequestCallback& requestCallback,
+                                  const ErrorCallback& errorCallback,
+				  const CertCallback& certCallback)
+{
+	try {
+        	Certificate cert(reply.getContent().blockFromValue());
+
+		//Store CA certifcate to be used for <Data> packet verification for NDNCERT protocol calls
+		m_ca_certificate = cert;
+
+                if (cert.getContent().value_size() != 0) {
+                	if(security::verifySignature(reply, cert)) {
+				_LOG_TRACE("Got CERT response");
+                        	std::cout << "\nCA Certificate retrieved and verified!" << std::endl;
+				certCallback(cert);
+                        }
+                        else {
+                        	std::cout << "FAILED: Could not verify data signature" << std::endl;
+                        }
+                }
+                else {
+                	std::cout << "Data size = 0" << std::endl;
+                }
+	}
+        catch(const tlv::Error& e){
+		std::cout << "FAILED: Unable to retrieve CA certificate" << std::endl;
+        }
+}
+
+void
 ClientModule::sendProbe(const ClientCaItem& ca, const std::string& probeInfo,
                         const RequestCallback& requestCallback,
                         const ErrorCallback& errorCallback)
@@ -169,7 +220,7 @@ ClientModule::handleProbeResponse(const Interest& request, const Data& reply,
                                   const RequestCallback& requestCallback,
                                   const ErrorCallback& errorCallback)
 {
-  if (!security::verifySignature(reply, ca.m_anchor)) {
+  if (!security::verifySignature(reply, m_ca_certificate /*ca.m_anchor*/)) {
     errorCallback("Cannot verify data from " + ca.m_caName.toUri());
     return;
   };
@@ -237,7 +288,7 @@ ClientModule::handleNewResponse(const Interest& request, const Data& reply,
                                 const RequestCallback& requestCallback,
                                 const ErrorCallback& errorCallback)
 {
-  if (!security::verifySignature(reply, state->m_ca.m_anchor)) {
+  if (!security::verifySignature(reply, m_ca_certificate /*state->m_ca.m_anchor*/)) {
     errorCallback("Cannot verify data from " + state->m_ca.m_caName.toUri());
     return;
   }
@@ -301,7 +352,7 @@ ClientModule::handleSelectResponse(const Interest& request,
                                    const RequestCallback& requestCallback,
                                    const ErrorCallback& errorCallback)
 {
-  if (!security::verifySignature(reply, state->m_ca.m_anchor)) {
+  if (!security::verifySignature(reply, m_ca_certificate /*state->m_ca.m_anchor*/)) {
     errorCallback("Cannot verify data from " + state->m_ca.m_caName.toUri());
     return;
   }
@@ -356,7 +407,7 @@ ClientModule::handleValidateResponse(const Interest& request,
                                      const RequestCallback& requestCallback,
                                      const ErrorCallback& errorCallback)
 {
-  if (!security::verifySignature(reply, state->m_ca.m_anchor)) {
+  if (!security::verifySignature(reply, m_ca_certificate /*state->m_ca.m_anchor*/)) {
     errorCallback("Cannot verify data from " + state->m_ca.m_caName.toUri());
     return;
   }
@@ -404,7 +455,7 @@ ClientModule::handleStatusResponse(const Interest& request, const Data& reply,
                                    const RequestCallback& requestCallback,
                                    const ErrorCallback& errorCallback)
 {
-  if (!security::verifySignature(reply, state->m_ca.m_anchor)) {
+  if (!security::verifySignature(reply, m_ca_certificate /*state->m_ca.m_anchor*/)) {
     errorCallback("Cannot verify data from " + state->m_ca.m_caName.toUri());
     return;
   }
@@ -450,7 +501,7 @@ ClientModule::handleDownloadResponse(const Interest& request, const Data& reply,
                                      const RequestCallback& requestCallback,
                                      const ErrorCallback& errorCallback)
 {
-  if (!security::verifySignature(reply, state->m_ca.m_anchor)) {
+  if (!security::verifySignature(reply, m_ca_certificate /*state->m_ca.m_anchor*/)) {
     errorCallback("Cannot verify data from " + state->m_ca.m_caName.toUri());
     return;
   }

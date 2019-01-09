@@ -103,6 +103,12 @@ CaModule::registerPrefix()
                                               bind(&CaModule::handleList, this, _2, item));
           m_interestFilterIds.push_back(filterId);
         }
+	// CERT
+        if (item.m_probe != "") {
+          filterId = m_face.setInterestFilter(Name(name).append("_CERT"),
+                                              bind(&CaModule::handleCert, this, _2, item));
+          m_interestFilterIds.push_back(filterId);
+        }
         _LOG_TRACE("Prefix " << name << " got registered");
       },
       bind(&CaModule::onRegisterFailed, this, _2));
@@ -547,6 +553,27 @@ CaModule::handleDownload(const Interest& request, const CaItem& caItem)
   m_keyChain.sign(result, signingByIdentity(caItem.m_caName));
   m_face.put(result);
 }
+
+
+void
+CaModule::handleCert(const Interest& request, const CaItem& caItem)
+{
+  // CERT Naming Convention: /CA-prefix/CA/_CERT
+  _LOG_TRACE("Handle CERT request");
+
+  auto identity = m_keyChain.getPib().getIdentity(Name(caItem.m_caName));
+  auto cert = identity.getDefaultKey().getDefaultCertificate();
+
+  Data result;
+  result.setName(request.getName());
+  result.setFreshnessPeriod(time::seconds(4));
+  result.setContent(cert.wireEncode());
+  m_keyChain.sign(result, signingByIdentity(caItem.m_caName));
+ 
+  m_face.put(result);
+
+}
+
 
 security::v2::Certificate
 CaModule::issueCertificate(const CertificateRequest& certRequest, const CaItem& caItem)

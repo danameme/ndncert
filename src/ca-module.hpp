@@ -93,6 +93,9 @@ PUBLIC_WITH_TESTS_ELSE_PRIVATE:
   handleDownload(const Interest& request, const CaItem& caItem);
 
   void
+  handleCert(const Interest& request, const CaItem& caItem);
+
+  void
   onRegisterFailed(const std::string& reason);
 
   CertificateRequest

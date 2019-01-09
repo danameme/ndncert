@@ -24,6 +24,8 @@
 #include "client-config.hpp"
 #include "certificate-request.hpp"
 
+using namespace ndn::security::v2;
+
 namespace ndn {
 namespace ndncert {
 
@@ -62,6 +64,7 @@ public:
   using ListCallback = function<void (const std::list<Name>&, const Name&, const Name&)>;
   using RequestCallback = function<void (const shared_ptr<RequestState>&)>;
   using ErrorCallback = function<void (const std::string&)>;
+  using CertCallback = function<void (const Certificate&)>;
 
 public:
   ClientModule(Face& face, security::v2::KeyChain& keyChain, size_t retryTimes = 2);
@@ -105,6 +108,14 @@ public:
   void
   handleListResponse(const Interest& request, const Data& reply, const ClientCaItem& ca,
                      const ListCallback& listCallback, const ErrorCallback& errorCallback);
+
+  void
+  sendCert(const ClientCaItem& ca,
+            const RequestCallback& requestCallback, const ErrorCallback& errorCallback, const CertCallback& certCallback);
+
+  void
+  handleCertResponse(const Interest& request, const Data& reply, const ClientCaItem& ca,
+                      const RequestCallback& requestCallback, const ErrorCallback& errorCallback, const CertCallback& certCallback);
 
   void
   sendProbe(const ClientCaItem& ca, const std::string& probeInfo,
@@ -183,6 +194,7 @@ protected:
   Face& m_face;
   security::v2::KeyChain& m_keyChain;
   size_t m_retryTimes;
+  ndn::security::v2::Certificate m_ca_certificate;
 };
 
 } // namespace ndncert
