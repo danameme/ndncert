@@ -181,19 +181,19 @@ ClientModule::handleCertResponse(const Interest& request, const Data& reply,
                 if (cert.getContent().value_size() != 0) {
                 	if(security::verifySignature(reply, cert)) {
 				_LOG_TRACE("Got CERT response");
-                        	std::cout << "\nCA Certificate retrieved and verified!" << std::endl;
+                        	errorCallback("\nCA Certificate retrieved and verified!");
 				certCallback(cert);
                         }
                         else {
-                        	std::cout << "FAILED: Could not verify data signature" << std::endl;
+                        	errorCallback("FAILED: Could not verify data signature");
                         }
                 }
                 else {
-                	std::cout << "Data size = 0" << std::endl;
+                	errorCallback("Data size = 0");
                 }
 	}
         catch(const tlv::Error& e){
-		std::cout << "FAILED: Unable to retrieve CA certificate" << std::endl;
+		errorCallback("FAILED: Unable to retrieve CA certificate");
         }
 }
 
