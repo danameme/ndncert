@@ -309,6 +309,7 @@ main_entry()
 
 	  int pref_len = item.m_caName.toUri().size();
           std::string pref_name = item.m_caName.toUri();
+
           if (m_ca_prefix == pref_name.substr(0,pref_len-3)) {
                 m_index = count;
           }
@@ -329,6 +330,9 @@ main_entry()
         int caIndex = m_index;
         BOOST_ASSERT(caIndex <= count);
         auto targetCaItem = caVector[caIndex];
+
+        //Set the namespace to request certificate for
+        targetCaItem.m_caName = m_ca_prefix + "/CA";
 
 	//Get CA certificate to use for <Data> packet verifications
 	client.sendCert(targetCaItem,
@@ -389,6 +393,9 @@ main_entry()
     int caIndex = m_index;
     BOOST_ASSERT(caIndex <= count);
     auto targetCaItem = caVector[caIndex];
+
+    //Set the namespace to request certificate for
+    targetCaItem.m_caName = m_ca_prefix + "/CA";
 
     //Get CA certificate to use for <Data> packet verifications
     client.sendCert(targetCaItem,
@@ -475,5 +482,5 @@ int InvokeClient::CallClientMain(std::string p_ca_prefix, std::string p_user_ide
 int main(int argc, char* argv[])
 {
 	InvokeClient cl;
-	return cl.CallClientMain("/ndn", "nmcs11", "NOCHALL");
+	return cl.CallClientMain("/ndn", "nmcd1", "NOCHALL");
 }
