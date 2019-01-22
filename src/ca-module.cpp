@@ -17,7 +17,7 @@
  *
  * See AUTHORS.md for complete list of ndncert authors and contributors.
  */
-
+#include <iostream>
 #include "ca-module.hpp"
 #include "challenge-module.hpp"
 #include "logging.hpp"
@@ -68,6 +68,7 @@ CaModule::registerPrefix()
   for (const auto& item : m_config.m_caItems) {
     Name prefix = item.m_caName;
     prefix.append("CA");
+    std::cout << prefix << std::endl;
 
     prefixId = m_face.registerPrefix(prefix,
       [&] (const Name& name) {
@@ -156,7 +157,7 @@ void
 CaModule::handleLocalhostList(const Interest& request)
 {
   _LOG_TRACE("Got Localhost LIST request");
-
+   std::cout << "handleLocalhostList called\n";
   JsonSection root;
   JsonSection caListSection;
 
@@ -208,6 +209,8 @@ CaModule::handleLocalhostList(const Interest& request)
 void
 CaModule::handleList(const Interest& request, const CaItem& caItem)
 {
+	std::cout << "handleList called\n";
+
   _LOG_TRACE("Got LIST request");
 
   bool getRecommendation = false;
@@ -465,7 +468,7 @@ CaModule::handleValidate(const Interest& request, const CaItem& caItem)
 
 void
 CaModule::handleStatus(const Interest& request, const CaItem& caItem)
-{
+{  
   // STATUS Naming Convention: /CA-prefix/CA/_STATUS/{Request-ID JSON}/[Signature components]
   _LOG_TRACE("Handle STATUS request");
 
@@ -558,6 +561,16 @@ CaModule::handleDownload(const Interest& request, const CaItem& caItem)
 void
 CaModule::handleCert(const Interest& request, const CaItem& caItem)
 {
+   auto ident = m_keyChain.getPib().getIdentity(Name("/test"));
+   auto certificate = ident.getDefaultKey().getDefaultCertificate();
+   if(security::verifySignature(request, certificate)){
+	std::cout << "VERIFIED\n";
+
+   }
+   else{
+	std::cout << "Could not verify\n";
+	
+   }
   // CERT Naming Convention: /CA-prefix/CA/_CERT
   _LOG_TRACE("Handle CERT request");
 
