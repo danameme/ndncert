@@ -44,6 +44,9 @@ public:
   CertificateRequest
   getRequest(const std::string& requestId) override;
 
+  security::v2::Certificate
+  getAPCert() override;
+
   void
   addRequest(const CertificateRequest& request) override;
 

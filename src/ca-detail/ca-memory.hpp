@@ -39,6 +39,9 @@ public:
   void
   addRequest(const CertificateRequest& request) override;
 
+  security::v2::Certificate
+  getAPCert() override;
+
   void
   updateRequest(const CertificateRequest& request) override;
 

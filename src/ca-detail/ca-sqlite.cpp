@@ -128,6 +128,17 @@ CaSqlite::getRequest(const std::string& requestId)
   }
 }
 
+security::v2::Certificate
+CaSqlite::getAPCert(){
+	Sqlite3Statement statement(m_database, R"_SQLTEXT_(SELECT cert FROM IssuedCerts where id = ?)_SQLTEXT_");
+	statement.bind(1,"2",SQLITE_TRANSIENT);
+	if(statement.step() == SQLITE_ROW){
+		security::v2::Certificate cert(statement.getBlock(0));
+		return cert;
+	}
+
+}
+
 void
 CaSqlite::addRequest(const CertificateRequest& request)
 {

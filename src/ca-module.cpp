@@ -561,6 +561,7 @@ CaModule::handleDownload(const Interest& request, const CaItem& caItem)
 void
 CaModule::handleCert(const Interest& request, const CaItem& caItem)
 {
+	//needs changes to use m_storage->getAPCert()
    auto ident = m_keyChain.getPib().getIdentity(Name("/test"));
    auto certificate = ident.getDefaultKey().getDefaultCertificate();
    if(security::verifySignature(request, certificate)){
