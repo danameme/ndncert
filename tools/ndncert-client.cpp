@@ -482,5 +482,5 @@ int InvokeClient::CallClientMain(std::string p_ca_prefix, std::string p_user_ide
 int main(int argc, char* argv[])
 {
 	InvokeClient cl;
-	return cl.CallClientMain("/ndn/edu/sh", "AP90", "NOCHALL");
+	return cl.CallClientMain("/ndn/edu/sh", "AP99", "NOCHALL");
 }

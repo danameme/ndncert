@@ -561,10 +561,12 @@ CaModule::handleDownload(const Interest& request, const CaItem& caItem)
 void
 CaModule::handleCert(const Interest& request, const CaItem& caItem)
 {
-	//needs changes to use m_storage->getAPCert()
-   auto ident = m_keyChain.getPib().getIdentity(Name("/test"));
-   auto certificate = ident.getDefaultKey().getDefaultCertificate();
-   if(security::verifySignature(request, certificate)){
+
+   //fetch static certificate based on keyName
+   // Defined in ca-sqlite.cpp
+   auto cert1 = m_storage->getAPCert();
+   std::cout << cert1.getKeyName().toUri() << std::endl;
+   if(security::verifySignature(request, cert1)){
 	std::cout << "VERIFIED\n";
 
    }
