@@ -562,18 +562,19 @@ void
 CaModule::handleCert(const Interest& request, const CaItem& caItem)
 {
 
-   //fetch static certificate based on keyName
+   // fetch static certificate based on keyName
    // Defined in ca-sqlite.cpp
-   auto cert1 = m_storage->getAPCert();
+   auto cert1 = m_storage->getAPCert(); 
    std::cout << cert1.getKeyName().toUri() << std::endl;
-   if(security::verifySignature(request, cert1)){
-	std::cout << "VERIFIED\n";
 
+   // Check to see if signed interest is signed by the correct AP
+   if (security::verifySignature(request, cert1)){
+	std::cout << "VERIFIED\n";
    }
    else{
 	std::cout << "Could not verify\n";
-	
    }
+
   // CERT Naming Convention: /CA-prefix/CA/_CERT
   _LOG_TRACE("Handle CERT request");
 

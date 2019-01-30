@@ -128,14 +128,16 @@ CaSqlite::getRequest(const std::string& requestId)
   }
 }
 
+// Gets certificate based on keyName. Hardcoded for testing purposes
 security::v2::Certificate
-CaSqlite::getAPCert(){
-	Sqlite3Statement statement(m_database, R"_SQLTEXT_(SELECT cert FROM IssuedCerts where cert_key_name = ?)_SQLTEXT_");
-	statement.bind(1,Name("/ndn/edu/sh/AP11/mdma/KEY/%27%20%86%60%8C%D9%88U").wireEncode(),SQLITE_TRANSIENT);
-	if(statement.step() == SQLITE_ROW){
-		security::v2::Certificate cert(statement.getBlock(0));
-		return cert;
-	}
+CaSqlite::getAPCert()
+{
+  Sqlite3Statement statement(m_database, R"_SQLTEXT_(SELECT cert FROM IssuedCerts where cert_key_name = ?)_SQLTEXT_");
+  statement.bind(1,Name("/ndn/edu/sh/AP11/test/KEY/%27%20%86%60%8C%D9%88U").wireEncode(),SQLITE_TRANSIENT);
+  if(statement.step() == SQLITE_ROW){
+    security::v2::Certificate cert(statement.getBlock(0));
+    return cert;
+  }
 
 }
 

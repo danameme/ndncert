@@ -38,8 +38,10 @@ CaMemory::getRequest(const std::string& requestId)
   return search->second;
 }
 
+// Does nothing
 security::v2::Certificate
-CaMemory::getAPCert() {}
+CaMemory::getAPCert() 
+{}
 
 void
 CaMemory::addRequest(const CertificateRequest& request)
