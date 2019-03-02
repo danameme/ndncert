@@ -46,7 +46,7 @@ public: // certificate request related
   getRequest(const std::string& requestId) = 0;
 
   virtual security::v2::Certificate
-  getAPCert() = 0;
+  getAPCert(const Interest& interest) = 0;
 
   virtual void
   addRequest(const CertificateRequest& request) = 0;

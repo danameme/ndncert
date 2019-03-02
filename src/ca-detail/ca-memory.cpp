@@ -40,7 +40,7 @@ CaMemory::getRequest(const std::string& requestId)
 
 // Does nothing
 security::v2::Certificate
-CaMemory::getAPCert() 
+CaMemory::getAPCert(const Interest& interest) 
 {}
 
 void

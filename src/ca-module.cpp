@@ -275,6 +275,24 @@ CaModule::handleList(const Interest& request, const CaItem& caItem)
 void
 CaModule::handleProbe(const Interest& request, const CaItem& caItem)
 {
+
+   // Fetch static certificate based on keyName defined in ca-sqlite.cpp
+   auto apCert = m_storage->getAPCert(request);
+
+   // Check if no certificate was returned
+   if (apCert.getKeyName().toUri() == "/") {
+	   std::cout << "Could not verify Interest, no certificate retrieved from DB\n";
+   }
+   else {
+   	// Check to see if signed interest is signed by the correct AP
+   	if (security::verifySignature(request, apCert)){
+        	std::cout << "Signed Interest VERIFIED Successfully!!\n";
+   	}
+   	else{
+        	std::cout << "FAILURE: Could Not Verify Signed Interest\n";
+   	}
+   }
+
   // PROBE Naming Convention: /CA-prefix/CA/_PROBE/<Probe Information>
   _LOG_TRACE("Handle PROBE request");
 
@@ -561,20 +579,6 @@ CaModule::handleDownload(const Interest& request, const CaItem& caItem)
 void
 CaModule::handleCert(const Interest& request, const CaItem& caItem)
 {
-
-   // fetch static certificate based on keyName
-   // Defined in ca-sqlite.cpp
-   auto cert1 = m_storage->getAPCert(); 
-   std::cout << cert1.getKeyName().toUri() << std::endl;
-
-   // Check to see if signed interest is signed by the correct AP
-   if (security::verifySignature(request, cert1)){
-	std::cout << "VERIFIED\n";
-   }
-   else{
-	std::cout << "Could not verify\n";
-   }
-
   // CERT Naming Convention: /CA-prefix/CA/_CERT
   _LOG_TRACE("Handle CERT request");
 

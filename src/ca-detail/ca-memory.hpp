@@ -40,7 +40,7 @@ public:
   addRequest(const CertificateRequest& request) override;
 
   security::v2::Certificate
-  getAPCert() override;
+  getAPCert(const Interest& interest) override;
 
   void
   updateRequest(const CertificateRequest& request) override;

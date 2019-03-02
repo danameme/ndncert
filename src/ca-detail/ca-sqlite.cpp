@@ -18,6 +18,7 @@
  * See AUTHORS.md for complete list of ndncert authors and contributors.
  */
 
+#include <iostream>
 #include "ca-sqlite.hpp"
 #include <ndn-cxx/util/sqlite3-statement.hpp>
 
@@ -55,6 +56,7 @@ CREATE TABLE IF NOT EXISTS
   IssuedCerts(
     id INTEGER PRIMARY KEY,
     cert_id TEXT NOT NULL,
+    identity TEXT,
     cert_key_name BLOB NOT NULL,
     cert BLOB NOT NULL
   );
@@ -130,13 +132,25 @@ CaSqlite::getRequest(const std::string& requestId)
 
 // Gets certificate based on keyName. Hardcoded for testing purposes
 security::v2::Certificate
-CaSqlite::getAPCert()
+CaSqlite::getAPCert(const Interest& interest)
 {
-  Sqlite3Statement statement(m_database, R"_SQLTEXT_(SELECT cert FROM IssuedCerts where cert_key_name = ?)_SQLTEXT_");
-  statement.bind(1,Name("/ndn/edu/sh/AP11/test/KEY/%27%20%86%60%8C%D9%88U").wireEncode(),SQLITE_TRANSIENT);
+
+  std::cout << "Retrieving AP Certificate... " << interest.getName() << std::endl;
+
+  std::string interestName = interest.getName().toUri();
+  std::string certIdentity = interestName.substr(0,interestName.find("/CA"));
+  
+  Sqlite3Statement statement(m_database, R"_SQLTEXT_(SELECT cert FROM IssuedCerts where identity = ?)_SQLTEXT_");
+
+  statement.bind(1,certIdentity,SQLITE_TRANSIENT);
+
   if(statement.step() == SQLITE_ROW){
-    security::v2::Certificate cert(statement.getBlock(0));
+    security::v2::Certificate cert(statement.getBlock(0));  
     return cert;
+  }
+  else {
+	  security::v2::Certificate defaultCert;
+	  return defaultCert;
   }
 
 }
@@ -277,11 +291,12 @@ void
 CaSqlite::addCertificate(const std::string& certId, const security::v2::Certificate& cert)
 {
   Sqlite3Statement statement(m_database,
-                             R"_SQLTEXT_(INSERT INTO IssuedCerts (cert_id, cert_key_name, cert)
-                             values (?, ?, ?))_SQLTEXT_");
+                             R"_SQLTEXT_(INSERT INTO IssuedCerts (cert_id, cert_key_name, cert, identity)
+                             values (?, ?, ?, ?))_SQLTEXT_");
   statement.bind(1, certId, SQLITE_TRANSIENT);
   statement.bind(2, cert.getKeyName().wireEncode(), SQLITE_TRANSIENT);
   statement.bind(3, cert.wireEncode(), SQLITE_TRANSIENT);
+  statement.bind(4, cert.getKeyName().toUri().substr(0,cert.getKeyName().toUri().find("/KEY")) , SQLITE_TRANSIENT);
 
   if (statement.step() != SQLITE_DONE) {
     BOOST_THROW_EXCEPTION(Error("Certificate " + cert.getName().toUri() + " cannot be added to database"));
