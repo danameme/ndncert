@@ -541,7 +541,7 @@ void
 ClientModule::onNack(const Interest& interest, const lp::Nack& nack, const ErrorCallback& errorCallback)
 {
   if (nack.getReason() == lp::NackReason::DUPLICATE) {
-  	errorCallback("CA already issued certificate for requested namespace");
+  	errorCallback("Got Nack: DUPLICATE");
   }
   else if (nack.getReason() == lp::NackReason::CONGESTION) {
         errorCallback("Got Nack: CONGESTION");

@@ -107,6 +107,9 @@ PUBLIC_WITH_TESTS_ELSE_PRIVATE:
   static JsonSection
   jsonFromNameComponent(const Name& name, int pos);
 
+  int
+  verifyInterest(const Interest& request);
+
   static Block
   dataContentFromJson(const JsonSection& jsonSection);
 

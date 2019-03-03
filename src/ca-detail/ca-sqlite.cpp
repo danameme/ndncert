@@ -56,9 +56,9 @@ CREATE TABLE IF NOT EXISTS
   IssuedCerts(
     id INTEGER PRIMARY KEY,
     cert_id TEXT NOT NULL,
-    identity TEXT,
     cert_key_name BLOB NOT NULL,
-    cert BLOB NOT NULL
+    cert BLOB NOT NULL,
+    identity TEXT
   );
 CREATE UNIQUE INDEX IF NOT EXISTS
   IssuedCertRequestIdIndex ON IssuedCerts(cert_id);
@@ -134,16 +134,11 @@ CaSqlite::getRequest(const std::string& requestId)
 security::v2::Certificate
 CaSqlite::getAPCert(const Interest& interest)
 {
-
-  std::cout << "Retrieving AP Certificate... " << interest.getName() << std::endl;
-
   std::string interestName = interest.getName().toUri();
   std::string certIdentity = interestName.substr(0,interestName.find("/CA"));
   
   Sqlite3Statement statement(m_database, R"_SQLTEXT_(SELECT cert FROM IssuedCerts where identity = ?)_SQLTEXT_");
-
   statement.bind(1,certIdentity,SQLITE_TRANSIENT);
-
   if(statement.step() == SQLITE_ROW){
     security::v2::Certificate cert(statement.getBlock(0));  
     return cert;
@@ -158,6 +153,7 @@ CaSqlite::getAPCert(const Interest& interest)
 void
 CaSqlite::addRequest(const CertificateRequest& request)
 {
+
   Sqlite3Statement statement1(m_database,
                              R"_SQLTEXT_(SELECT * FROM CertRequests where cert_key_name = ?)_SQLTEXT_");
   statement1.bind(1, request.getCert().getKeyName().wireEncode(), SQLITE_TRANSIENT);
@@ -167,18 +163,15 @@ CaSqlite::addRequest(const CertificateRequest& request)
   }
 
   //Check for case where certificate is already issued for same namespace
-  CaSqlite storage;
+  //CaSqlite storage;
   std::string requestIdentityName = request.getCert().getIdentity().toUri();
-  std::list<security::v2::Certificate> certList;
-  
-  certList = storage.listAllIssuedCertificates();
+  std::list<security::v2::Certificate> certList = CaSqlite::listAllIssuedCertificates();
   for (const auto& entry : certList) {
     //Determine if namespace has already been used
     if (requestIdentityName.compare(entry.getIdentity().toUri()) == 0){
       BOOST_THROW_EXCEPTION(Error("Namespace for " + request.getCert().getIdentity().toUri() + " already exists"));
       return;
     }
-  
   }
 
   Sqlite3Statement statement2(m_database,
@@ -202,6 +195,7 @@ CaSqlite::addRequest(const CertificateRequest& request)
   statement.bind(7, convertJson2String(request.getChallengeSecrets()), SQLITE_TRANSIENT);
 
   if (statement.step() != SQLITE_DONE) {
+	  std::cout << "ERROR CANNOT ADD REQ to DB..." << std::endl;
     BOOST_THROW_EXCEPTION(Error("Request " + request.getRequestId() + " cannot be added to database"));
   }
 }

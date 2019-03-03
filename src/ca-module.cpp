@@ -64,6 +64,8 @@ CaModule::registerPrefix()
   m_registeredPrefixIds.push_back(prefixId);
   _LOG_TRACE("Prefix " << localProbePrefix << " got registered");
 
+  std::cout << "CA issuing certifcates for:" << std::endl;
+
   // register prefixes for each CA
   for (const auto& item : m_config.m_caItems) {
     Name prefix = item.m_caName;
@@ -105,11 +107,9 @@ CaModule::registerPrefix()
           m_interestFilterIds.push_back(filterId);
         }
 	// CERT
-        if (item.m_probe != "") {
-          filterId = m_face.setInterestFilter(Name(name).append("_CERT"),
+        filterId = m_face.setInterestFilter(Name(name).append("_CERT"),
                                               bind(&CaModule::handleCert, this, _2, item));
-          m_interestFilterIds.push_back(filterId);
-        }
+        m_interestFilterIds.push_back(filterId);
         _LOG_TRACE("Prefix " << name << " got registered");
       },
       bind(&CaModule::onRegisterFailed, this, _2));
@@ -209,8 +209,6 @@ CaModule::handleLocalhostList(const Interest& request)
 void
 CaModule::handleList(const Interest& request, const CaItem& caItem)
 {
-	std::cout << "handleList called\n";
-
   _LOG_TRACE("Got LIST request");
 
   bool getRecommendation = false;
@@ -275,7 +273,7 @@ CaModule::handleList(const Interest& request, const CaItem& caItem)
 void
 CaModule::handleProbe(const Interest& request, const CaItem& caItem)
 {
-
+	/*
    // Fetch static certificate based on keyName defined in ca-sqlite.cpp
    auto apCert = m_storage->getAPCert(request);
 
@@ -292,7 +290,9 @@ CaModule::handleProbe(const Interest& request, const CaItem& caItem)
         	std::cout << "FAILURE: Could Not Verify Signed Interest\n";
    	}
    }
-
+*/
+int verificationResult = CaModule::verifyInterest(request);
+if (verificationResult == 1) {
   // PROBE Naming Convention: /CA-prefix/CA/_PROBE/<Probe Information>
   _LOG_TRACE("Handle PROBE request");
 
@@ -320,6 +320,16 @@ CaModule::handleProbe(const Interest& request, const CaItem& caItem)
 
   _LOG_TRACE("Handle PROBE: generate identity " << identityName);
 }
+else {
+  if (verificationResult == 2) {
+     std::cout << "Could not verify Interest, no certificate retrieved from DB" << std::endl;
+  }
+  else if (verificationResult == 3) {
+     std::cout << "FAILURE: Could Not Verify Signed Interest" << std::endl;
+  }
+}
+
+}
 
 void
 CaModule::handleNew(const Interest& request, const CaItem& caItem)
@@ -333,15 +343,18 @@ CaModule::handleNew(const Interest& request, const CaItem& caItem)
   }
   catch (const std::exception& e) {
     _LOG_ERROR("Unrecognized certificate request " << e.what());
+    std::cout << "Unrecognized certificate request " << e.what() << std::endl;
     return;
   }
 
   if (!security::verifySignature(clientCert, clientCert)) {
     _LOG_TRACE("Cert request with bad signature.");
+    std::cout << "Cert request with bad signature." <<std::endl;
     return;
   }
   if (!security::verifySignature(request, clientCert)) {
     _LOG_TRACE("Interest with bad signature.");
+    std::cout << "Interest with bad signature." << std::endl; 
     return;
   }
 
@@ -353,6 +366,7 @@ CaModule::handleNew(const Interest& request, const CaItem& caItem)
   }
   catch (const std::exception& e) {
     _LOG_TRACE("Cannot add new request instance " << e.what());
+    std::cout << "Cannot add new request instance " << e.what() << std::endl;
     return;
   }
 
@@ -518,6 +532,8 @@ CaModule::handleStatus(const Interest& request, const CaItem& caItem)
 void
 CaModule::handleDownload(const Interest& request, const CaItem& caItem)
 {
+int verificationResult = CaModule::verifyInterest(request);
+if (verificationResult == 1) {
   // DOWNLOAD Naming Convention: /CA-prefix/CA/_DOWNLOAD/{Request-ID JSON}
   _LOG_TRACE("Handle DOWNLOAD request");
 
@@ -573,6 +589,16 @@ CaModule::handleDownload(const Interest& request, const CaItem& caItem)
   }
   m_keyChain.sign(result, signingByIdentity(caItem.m_caName));
   m_face.put(result);
+}
+else {
+  if (verificationResult == 2) {
+     std::cout << "Could not verify Interest, no certificate retrieved from DB" << std::endl;
+  }
+  else if (verificationResult == 3) {
+     std::cout << "FAILURE: Could Not Verify Signed Interest" << std::endl;
+  }
+}
+
 }
 
 
@@ -662,6 +688,27 @@ CaModule::jsonFromNameComponent(const Name& name, int pos)
   JsonSection json;
   boost::property_tree::json_parser::read_json(ss, json);
   return json;
+}
+
+int
+CaModule::verifyInterest(const Interest& request)
+{
+   // Fetch static certificate based on keyName defined in ca-sqlite.cpp
+   auto apCert = m_storage->getAPCert(request);
+
+   // Check if no certificate was returned
+   if (apCert.getKeyName().toUri() == "/") {
+	   return 2;
+   }
+   else {
+        // Check to see if signed interest is signed by the correct AP
+        if (security::verifySignature(request, apCert)){
+		return 1;
+        }
+        else{
+		return 3;
+        }
+   }
 }
 
 } // namespace ndncert

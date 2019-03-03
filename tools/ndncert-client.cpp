@@ -482,5 +482,13 @@ int InvokeClient::CallClientMain(std::string p_ca_prefix, std::string p_user_ide
 int main(int argc, char* argv[])
 {
 	InvokeClient cl;
-	return cl.CallClientMain("/ndn/edu/sh", "AP99", "NOCHALL");
+	std::string p_namespace = "/ndn";
+	std::string p_identity = "nmuser1";
+	std::string p_challenge = "NOCHALL";
+	if (argc == 4) {
+		p_namespace = argv[1];
+		p_identity = argv[2];
+		p_challenge = argv[3];
+	}
+	return cl.CallClientMain(p_namespace, p_identity, p_challenge);
 }
