@@ -31,6 +31,13 @@ namespace ndncert {
 class CaModule : noncopyable
 {
 public:
+  enum CaVerifyInterest {
+        SUCCESS = 10,
+        NO_CERT_FOUND = 20,
+        FAILURE = 30
+  };
+
+public:
   /**
    * @brief Error that can be thrown from CaModule
    */
@@ -107,7 +114,7 @@ PUBLIC_WITH_TESTS_ELSE_PRIVATE:
   static JsonSection
   jsonFromNameComponent(const Name& name, int pos);
 
-  int
+  CaVerifyInterest
   verifyInterest(const Interest& request);
 
   static Block

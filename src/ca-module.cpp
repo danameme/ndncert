@@ -292,7 +292,7 @@ CaModule::handleProbe(const Interest& request, const CaItem& caItem)
    }
 */
 int verificationResult = CaModule::verifyInterest(request);
-if (verificationResult == 1) {
+if (verificationResult == CaVerifyInterest::SUCCESS) {
   // PROBE Naming Convention: /CA-prefix/CA/_PROBE/<Probe Information>
   _LOG_TRACE("Handle PROBE request");
 
@@ -321,10 +321,10 @@ if (verificationResult == 1) {
   _LOG_TRACE("Handle PROBE: generate identity " << identityName);
 }
 else {
-  if (verificationResult == 2) {
+  if (verificationResult == CaVerifyInterest::NO_CERT_FOUND) {
      std::cout << "Could not verify Interest, no certificate retrieved from DB" << std::endl;
   }
-  else if (verificationResult == 3) {
+  else if (verificationResult == CaVerifyInterest::FAILURE) {
      std::cout << "FAILURE: Could Not Verify Signed Interest" << std::endl;
   }
 }
@@ -533,7 +533,7 @@ void
 CaModule::handleDownload(const Interest& request, const CaItem& caItem)
 {
 int verificationResult = CaModule::verifyInterest(request);
-if (verificationResult == 1) {
+if (verificationResult == CaVerifyInterest::SUCCESS) {
   // DOWNLOAD Naming Convention: /CA-prefix/CA/_DOWNLOAD/{Request-ID JSON}
   _LOG_TRACE("Handle DOWNLOAD request");
 
@@ -591,10 +591,10 @@ if (verificationResult == 1) {
   m_face.put(result);
 }
 else {
-  if (verificationResult == 2) {
+  if (verificationResult == CaVerifyInterest::NO_CERT_FOUND) {
      std::cout << "Could not verify Interest, no certificate retrieved from DB" << std::endl;
   }
-  else if (verificationResult == 3) {
+  else if (verificationResult == CaVerifyInterest::FAILURE) {
      std::cout << "FAILURE: Could Not Verify Signed Interest" << std::endl;
   }
 }
@@ -690,7 +690,7 @@ CaModule::jsonFromNameComponent(const Name& name, int pos)
   return json;
 }
 
-int
+CaModule::CaVerifyInterest
 CaModule::verifyInterest(const Interest& request)
 {
    // Fetch static certificate based on keyName defined in ca-sqlite.cpp
@@ -698,15 +698,15 @@ CaModule::verifyInterest(const Interest& request)
 
    // Check if no certificate was returned
    if (apCert.getKeyName().toUri() == "/") {
-	   return 2;
+	   return CaVerifyInterest::NO_CERT_FOUND;
    }
    else {
         // Check to see if signed interest is signed by the correct AP
         if (security::verifySignature(request, apCert)){
-		return 1;
+		return CaVerifyInterest::SUCCESS;
         }
         else{
-		return 3;
+		return CaVerifyInterest::FAILURE;
         }
    }
 }
