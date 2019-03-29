@@ -150,6 +150,25 @@ CaSqlite::getAPCert(const Interest& interest)
 
 }
 
+// Gets certificate based on namespace. Used for data verification
+security::v2::Certificate
+CaSqlite::getDataCertificate(std::string p_name)
+{
+
+  Sqlite3Statement statement(m_database, R"_SQLTEXT_(SELECT cert FROM IssuedCerts where identity = ?)_SQLTEXT_");
+  statement.bind(1,p_name,SQLITE_TRANSIENT);
+  if(statement.step() == SQLITE_ROW){
+    security::v2::Certificate cert(statement.getBlock(0));
+    return cert;
+  }
+  else {
+          security::v2::Certificate defaultCert;
+          return defaultCert;
+  }
+
+}
+
+
 void
 CaSqlite::addRequest(const CertificateRequest& request)
 {

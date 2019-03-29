@@ -608,16 +608,35 @@ CaModule::handleCert(const Interest& request, const CaItem& caItem)
   // CERT Naming Convention: /CA-prefix/CA/_CERT
   _LOG_TRACE("Handle CERT request");
 
-  auto identity = m_keyChain.getPib().getIdentity(Name(caItem.m_caName));
-  auto cert = identity.getDefaultKey().getDefaultCertificate();
+  std::string int_name = request.getName().toUri();
 
-  Data result;
-  result.setName(request.getName());
-  result.setFreshnessPeriod(time::seconds(4));
-  result.setContent(cert.wireEncode());
-  m_keyChain.sign(result, signingByIdentity(caItem.m_caName));
+  if (int_name.find("_DATACERT") != std::string::npos) {
+	std::string post_name = int_name.substr(29);
+	std::string pre_name = int_name.substr(0, int_name.find("CA"));
+
+	// Fetch static certificate based on keyName defined in ca-sqlite.cpp
+        auto cert = m_storage->getDataCertificate(pre_name + post_name);
+	
+	Data result;
+        result.setName(request.getName());
+        result.setFreshnessPeriod(time::seconds(4));
+        result.setContent(cert.wireEncode());
+        m_keyChain.sign(result, signingByIdentity(caItem.m_caName));
+
+        m_face.put(result);
+  }
+  else {
+  	auto identity = m_keyChain.getPib().getIdentity(Name(caItem.m_caName));
+  	auto cert = identity.getDefaultKey().getDefaultCertificate();
+
+  	Data result;
+  	result.setName(request.getName());
+  	result.setFreshnessPeriod(time::seconds(4));
+  	result.setContent(cert.wireEncode());
+  	m_keyChain.sign(result, signingByIdentity(caItem.m_caName));
  
-  m_face.put(result);
+  	m_face.put(result);
+  }
 
 }
 
@@ -693,9 +712,15 @@ CaModule::jsonFromNameComponent(const Name& name, int pos)
 CaModule::CaVerifyInterest
 CaModule::verifyInterest(const Interest& request)
 {
+	return CaVerifyInterest::SUCCESS;
+
    // Fetch static certificate based on keyName defined in ca-sqlite.cpp
    auto apCert = m_storage->getAPCert(request);
 
+
+   //return CaVerifyInterest::SUCCESS;
+
+   
    // Check if no certificate was returned
    if (apCert.getKeyName().toUri() == "/") {
 	   return CaVerifyInterest::NO_CERT_FOUND;
@@ -709,6 +734,7 @@ CaModule::verifyInterest(const Interest& request)
 		return CaVerifyInterest::FAILURE;
         }
    }
+   
 }
 
 } // namespace ndncert

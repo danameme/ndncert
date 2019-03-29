@@ -38,9 +38,14 @@ CaMemory::getRequest(const std::string& requestId)
   return search->second;
 }
 
-// Does nothing
+// Does nothing, for override
 security::v2::Certificate
 CaMemory::getAPCert(const Interest& interest) 
+{}
+
+// Does nothing, for ovverride
+security::v2::Certificate
+CaMemory::getDataCertificate(std::string p_name)
 {}
 
 void

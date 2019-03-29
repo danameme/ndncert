@@ -48,6 +48,9 @@ public: // certificate request related
   virtual security::v2::Certificate
   getAPCert(const Interest& interest) = 0;
 
+  virtual security::v2::Certificate
+  getDataCertificate(std::string p_name) = 0;
+
   virtual void
   addRequest(const CertificateRequest& request) = 0;
 

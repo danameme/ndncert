@@ -47,6 +47,9 @@ public:
   security::v2::Certificate
   getAPCert(const Interest& interest) override;
 
+  security::v2::Certificate
+  getDataCertificate(std::string p_name) override;
+
   void
   addRequest(const CertificateRequest& request) override;
 
