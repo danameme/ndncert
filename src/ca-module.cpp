@@ -611,7 +611,7 @@ CaModule::handleCert(const Interest& request, const CaItem& caItem)
   std::string int_name = request.getName().toUri();
 
   if (int_name.find("_DATACERT") != std::string::npos) {
-	std::string post_name = int_name.substr(29);
+	std::string post_name = int_name.substr(int_name.find("_DATACERT") + 10);
 	std::string pre_name = int_name.substr(0, int_name.find("CA"));
 
 	// Fetch static certificate based on keyName defined in ca-sqlite.cpp
