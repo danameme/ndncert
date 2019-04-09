@@ -712,15 +712,9 @@ CaModule::jsonFromNameComponent(const Name& name, int pos)
 CaModule::CaVerifyInterest
 CaModule::verifyInterest(const Interest& request)
 {
-	return CaVerifyInterest::SUCCESS;
-
    // Fetch static certificate based on keyName defined in ca-sqlite.cpp
    auto apCert = m_storage->getAPCert(request);
 
-
-   //return CaVerifyInterest::SUCCESS;
-
-   
    // Check if no certificate was returned
    if (apCert.getKeyName().toUri() == "/") {
 	   return CaVerifyInterest::NO_CERT_FOUND;
