@@ -112,5 +112,5 @@ def build(bld):
     bld.shlib(source=[
 		"tools/ndncert-client.cpp",
 		"tools/c-wrapper.cpp"], 
-		target="clientcwrapper", includes=["tools"], cxxflags="-g -Wall -O0", 
+		target="ndncertclientshlib", includes=["tools"], cxxflags="-g -Wall -O0", 
 		use=["ndn-cert"])

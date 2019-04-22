@@ -21,6 +21,7 @@
 #include "client-module.hpp"
 #include "challenge-module.hpp"
 #include "invoke-client.hpp"
+#include "../src/ndncert-client-shlib.hpp"
 
 #include <iostream>
 #include <string>
@@ -478,6 +479,19 @@ int InvokeClient::CallClientMain(std::string p_ca_prefix, std::string p_user_ide
 	return ndn::ndncert::main_entry();
 }
 //End of class method definitions
+
+//Define class methods for C++ shared library
+NdnCertClientShLib::NdnCertClientShLib() {
+}
+
+int NdnCertClientShLib::NdnCertRunClient(std::string p_ca_prefix, std::string p_user_identity, std::string p_challenge) {
+	m_ca_prefix = p_ca_prefix;
+        m_user_identity = p_user_identity;
+        m_challenge = p_challenge;
+        return ndn::ndncert::main_entry();
+}
+//End of class method for C++ shared library
+
 
 int main(int argc, char* argv[])
 {
