@@ -484,7 +484,7 @@ int InvokeClient::CallClientMain(std::string p_ca_prefix, std::string p_user_ide
 NdnCertClientShLib::NdnCertClientShLib() {
 }
 
-int NdnCertClientShLib::NdnCertRunClient(std::string p_ca_prefix, std::string p_user_identity, std::string p_challenge) {
+int NdnCertClientShLib::RunNdnCertClient(std::string p_ca_prefix, std::string p_user_identity, std::string p_challenge) {
 	m_ca_prefix = p_ca_prefix;
         m_user_identity = p_user_identity;
         m_challenge = p_challenge;

@@ -29,7 +29,7 @@
 #include <iostream>
 
 #include "ndncert-client-shlib.hpp"
-//#include "auto-client-shlib.hpp"
+#include "auto-client-shlib.hpp"
 
 std::string AP_Namespace;
 std::string producerIdentity = "prod0";
@@ -59,16 +59,9 @@ public:
   void
   run_autoconfig()
   {
-	  //AutoClientShLib cl;
+	AutoClientShLib cl;
+	AP_Namespace = cl.RunAutoClient("eth0");
 
-        system("ndn-autoconfig -i eth0 > temp_out.txt 2>&1");
-        system("grep \"CA Namespace\" temp_out.txt > temp_out2.txt 2>&1");
-        std::ifstream file("temp_out2.txt");
-        std::getline(file, AP_Namespace);
-        file.close();
-        std::string namesp = AP_Namespace.substr(AP_Namespace.find(":") + 1); //remove description
-        AP_Namespace = namesp.substr(namesp.find_first_not_of(" ")); //trim leading spaces
-        system("rm temp_out*");
         return;
   }
 
@@ -76,7 +69,7 @@ public:
   run_ndncert()
   {
 	NdnCertClientShLib cl;
-        int result = cl.NdnCertRunClient(AP_Namespace, producerIdentity, challenge_type);
+        int result = cl.RunNdnCertClient(AP_Namespace, producerIdentity, challenge_type);
 	
 	return;
   }

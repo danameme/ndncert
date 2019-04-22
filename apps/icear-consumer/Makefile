@@ -3,11 +3,11 @@ SH_LIB_PATH = -L /usr/local/lib -Wl,-rpath=/usr/local/lib
 NDNCERT_HEADERS = /usr/local/include/ndncert/
 AUTOCONFIG_HEADERS = /usr/local/include/NFD/ndn-autoconfig/ 
 
-all:	ICE-AR-Producer.o
-	g++ $(SH_LIB_PATH) ICE-AR-Producer.o -o ICE-AR-Producer $(LIBS)
+all:	ICE-AR-Consumer.o
+	g++ $(SH_LIB_PATH) ICE-AR-Consumer.o -o ICE-AR-Consumer	$(LIBS)
 
-ICE-AR-Producer.o:	ICE-AR-Producer.cpp
-	g++ -I $(AUTOCONFIG_HEADERS) -I $(NDNCERT_HEADERS) -c ICE-AR-Producer.cpp -o ICE-AR-Producer.o
+ICE-AR-Consumer.o:	ICE-AR-Consumer.cpp
+	g++ -I $(AUTOCONFIG_HEADERS) -I $(NDNCERT_HEADERS) -c ICE-AR-Consumer.cpp -o ICE-AR-Consumer.o
 
 clean:
 	rm *.o
