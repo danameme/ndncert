@@ -49,6 +49,7 @@ std::string consumerIdentity = "prod2";
 std::string namespace_prefix = "/ndn/AP40/";
 std::string challenge_type = "NOCHALL";
 ndn::security::v2::Certificate dataCert;
+ndn::security::v2::Certificate trustAnchor;
 
 using namespace std;
 
@@ -60,18 +61,21 @@ namespace examples {
 class Consumer : noncopyable
 {
 public:
+
+
+
   void
   run()
   {
 	
-    Interest interest(Name(namespace_prefix + consumerIdentity + "/randomData" + to_string(thiscount)));
+    Interest interest(Name("/ndn/nmsu/cs"));
     interest.setInterestLifetime(4_s); // 2 seconds
     interest.setMustBeFresh(true);
     
     auto identity = m_keyChain.getPib().getDefaultIdentity();
     auto cert = identity.getDefaultKey().getDefaultCertificate();
 
-    m_keyChain.sign(interest);
+    //m_keyChain.sign(interest);
     m_face.expressInterest(interest,
                            bind(&Consumer::onData, this,  _1, _2),
                            bind(&Consumer::onNack, this, _1, _2),
@@ -91,8 +95,8 @@ public:
   run_autoconfig()
   {
 	AutoClientShLib cl;
-        AP_Namespace = cl.RunAutoClient("eth0");
-
+        AP_Namespace = cl.RunAutoClient("wlan0");
+        std::cout << "XXXX " << AP_Namespace << std::endl;
         return;
   }
 
@@ -100,7 +104,9 @@ public:
   run_ndncert()
   {
 	NdnCertClientShLib cl;
+	std::cout << AP_Namespace << consumerIdentity << std::endl;
         int result = cl.RunNdnCertClient(AP_Namespace, consumerIdentity, challenge_type);
+
 
         return;
   }
@@ -108,7 +114,9 @@ public:
   void
   get_data_cert()
   {
-    Interest interest(Name(namespace_prefix + "CA/_CERT/_DATACERT/" + consumerIdentity));
+    std::string prodNamespace = "/ndn/AP/";
+    std::string prodName = "producer";
+    Interest interest(Name(prodNamespace + "CA/_CERT/_DATACERT/" + prodName));
     interest.setInterestLifetime(2_s); // 2 seconds
     interest.setMustBeFresh(true);
 
@@ -152,9 +160,9 @@ private:
   void
   onData(const Interest& interest, const Data& data)
   {
- 
+    std::cout << "data name " << data.getSignature().getKeyLocator().getName() << std::endl;
     //Get certificate from CA for the name in received data packet
-    get_data_cert();
+    //get_data_cert();
 
     if(ndn::security::verifySignature(data, dataCert)) {
 	std::cout << "\n<< Received Data: " << data << std::endl;
@@ -191,7 +199,7 @@ private:
 		// Assume pi reconnects to AP and ndn-autoconfig works the first time
 
 		AutoClientShLib autocl;
-        	AP_Namespace = autocl.RunAutoClient("eth0");
+        	AP_Namespace = autocl.RunAutoClient("wlan0");
 
 		NdnCertClientShLib ndncertcl;
         	int result = ndncertcl.RunNdnCertClient(AP_Namespace, consumerIdentity, challenge_type);
@@ -240,10 +248,10 @@ main(int argc, char** argv)
     //consumer.run_autoconfig();
     //consumer.run_ndncert();
 
-    while(thiscount < 20){
+    //while(thiscount < 20){
     	consumer.run();
     	thiscount++;
-    }
+    //}
   }
   catch (const std::exception& e) {
     std::cerr << "ERROR: " << e.what() << std::endl;

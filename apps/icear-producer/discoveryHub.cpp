@@ -24,17 +24,16 @@
 #include <ndn-cxx/face.hpp>
 #include <ndn-cxx/security/key-chain.hpp>
 #include <ndn-cxx/security/signing-helpers.hpp>
-
+#include <ndn-cxx/security/pib/pib-sqlite3.hpp>
 #include <fstream>
 #include <iostream>
 
 #include "ndncert-client-shlib.hpp"
 #include "auto-client-shlib.hpp"
 
-std::string AP_Namespace;
-std::string producerIdentity = "prod0";
-std::string namespace_prefix = "/example/testApp";
-std::string challenge_type = "NOCHALL";
+std::string namespace_prefix = "/localhop/ndn-autoconf/CA";
+
+ndn::security::v2::Certificate dataCert;
 
 // Enclosing code in ndn simplifies coding (can also use `using namespace ndn`)
 namespace ndn {
@@ -55,20 +54,16 @@ public:
                              bind(&Producer::onRegisterFailed, this, _1, _2));
     m_face.processEvents();
   }
-  void
-  run_ndncert()
-  {
-	NdnCertClientShLib cl;
-        int result = cl.RunNdnCertClient(AP_Namespace, producerIdentity, challenge_type);
-	
-	return;
-  }
-
 
 private:
   void
   onInterest(const InterestFilter& filter, const Interest& interest)
   {
+    // Get self-signed certificate
+    auto identity = m_keyChain.getPib().getDefaultIdentity();
+    auto cert = identity.getDefaultKey().getDefaultCertificate();
+    std::cout << cert << std::endl;
+
     std::cout << "<< I: " << interest << std::endl;
 
     // Create new name, based on Interest's name
@@ -76,16 +71,15 @@ private:
     dataName
       .appendVersion();  // add "version" component (current UNIX timestamp in milliseconds)
 
-    static const std::string content = "TEST CONTENT";
 
     // Create Data packet
     shared_ptr<Data> data = make_shared<Data>();
     data->setName(dataName);
     data->setFreshnessPeriod(10_s); // 10 seconds
-    data->setContent(reinterpret_cast<const uint8_t*>(content.data()), content.size());
+    data->setContent(cert.wireEncode());
 
     // Sign Data packet
-    m_keyChain.sign(*data, ndn::security::signingByIdentity(Name("/ndn/AP/producer")));
+    m_keyChain.sign(*data, ndn::security::signingByIdentity(Name("/ndn/ucla/compSci/15")));
 
     // Return Data packet to the requester
     std::cout << ">> D: " << *data << std::endl;
@@ -102,6 +96,7 @@ private:
     m_face.shutdown();
   }
 
+
 private:
   Face m_face;
   KeyChain m_keyChain;
@@ -113,19 +108,8 @@ private:
 int
 main(int argc, char** argv)
 {
-
-  if (argc == 3) {
-	  namespace_prefix = argv[1];
-	  producerIdentity = argv[2];
-  }
-
   ndn::examples::Producer producer;
   try {
-
-    //producer.run_autoconfig();
-
-    //producer.run_ndncert();
-
     producer.run();
   }
   catch (const std::exception& e) {
