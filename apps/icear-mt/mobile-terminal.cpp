@@ -23,7 +23,7 @@
  * NFD, e.g., in COPYING.md file.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "auto-discovery.hpp"
+#include "mobile-terminal.hpp"
 #include <boost/lexical_cast.hpp>
 #include <ndn-cxx/encoding/tlv-nfd.hpp>
 #include "ndncert-client-shlib.hpp"
@@ -32,12 +32,12 @@
 #include <ndn-cxx/security/verification-helpers.hpp>
 
 ndn::Face face;   
-ndn::Face m_face2;
+ndn::Face face2;
 ndn::security::KeyChain keyChain;
 std::string caName;
 std::string challengeType = "NOCHALL";
-std::string identity = "cons5";
-
+std::string identity = "mobterm1";
+std::string dataNamespace = "/ndn/ucla/cs/app/mobterm1";
 
 namespace ndn {
 namespace autodiscovery {
@@ -57,13 +57,15 @@ AutoDiscovery::AutoDiscovery(Face& face, nfd::Controller& controller)
 }
 
 void
-  AutoDiscovery::RunNdncert()
-  {
+AutoDiscovery::RunNdncert()
+{
+	std::cout << "\nGetting certificate from CA...\n";
+
 	NdnCertClientShLib cl;
-	std::cout << caName <<identity << std::endl;
+	std::cout << caName << "/" << identity << std::endl;
         int result = cl.RunNdnCertClient(caName, identity, challengeType);
         return;
-  }
+}
 
 void
 AutoDiscovery::doStart()
@@ -149,50 +151,52 @@ AutoDiscovery::setStrategy()
 void
 AutoDiscovery::startListener(){
 
-    m_face2.setInterestFilter("/ndn/ucla/cs",
+    std::cout << "Starting Listener for... " << dataNamespace << std::endl;
+
+    face2.setInterestFilter(dataNamespace,
                              bind(&AutoDiscovery::onInterest, this, _1, _2),
                              RegisterPrefixSuccessCallback(),
                              bind(&AutoDiscovery::onRegisterFailed, this, _1, _2));
-    m_face2.processEvents();
+    face2.processEvents();
 
 }
 
 
 void
-  AutoDiscovery::onInterest(const InterestFilter& filter, const Interest& interest)
-  {
+AutoDiscovery::onInterest(const InterestFilter& filter, const Interest& interest)
+{
     
     std::cout << "<< Received interest: " << interest << std::endl;
 
-    // Create new name, based on Interest's name
+    // Create data name based on Interest's name
     Name dataName(interest.getName());
     dataName
       .appendVersion();  // add "version" component (current UNIX timestamp in milliseconds)
 
-    std::string content = "test";
+    std::string content = "DummyDataxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx";
+
     // Create Data packet
     shared_ptr<Data> data = make_shared<Data>();
     data->setName(dataName);
     data->setFreshnessPeriod(10_s); // 10 seconds
     data->setContent(reinterpret_cast<const uint8_t*>(content.data()), content.size());
 
-    // Sign Data packet
+    // Sign Data packet with certificate received from CA
     keyChain.sign(*data, ndn::security::signingByIdentity(Name(caName +"/"+identity)));
 
     // Return Data packet to the requester
     std::cout << ">> D: " << *data << std::endl;
-    m_face2.put(*data);
-  }
+    face2.put(*data);
+}
 
-
-  void
-  AutoDiscovery::onRegisterFailed(const Name& prefix, const std::string& reason)
-  {
+void
+AutoDiscovery::onRegisterFailed(const Name& prefix, const std::string& reason)
+{
     std::cerr << "ERROR: Failed to register prefix \""
               << prefix << "\" in local hub's daemon (" << reason << ")"
               << std::endl;
     m_face.shutdown();
-  }
+}
 
 void
 AutoDiscovery::requestHubData()
@@ -205,24 +209,27 @@ AutoDiscovery::requestHubData()
 
   m_face.expressInterest(interest,
     [this] (const Interest&, const Data& data) {
+
       const Block& content = data.getContent();
       content.parse();
       std::cout << data.getSignature().getKeyLocator().getName() << std::endl;
       ndn::security::v2::Certificate cert(data.getContent().blockFromValue());
+
+      std::cout << "\nTrust Anchor certificate retrieved...\n" << cert << std::endl;
+
       if(ndn::security::verifySignature(data,cert)){
-        std::cout << "Client certificate verified by trust anchor!!!";
+        std::cout << "Device certificate verified by trust anchor!!!\n";
       }
-      std::cout << cert << std::endl;
 
       // Get CA namespace from Keylocator
       KeyLocator keyLocator = cert.getSignature().getKeyLocator();
       std::string tempName = keyLocator.getName().toUri();
       caName = tempName.substr(0,tempName.find("KEY")-1);
-      std::cout << caName << std::endl;
 
-      std::cout << "Fetching client certificate\n";
+      //Get certificate to be used for signing data
       RunNdncert();
-      std::cout << "Starting Listener...\n";
+
+      //Start listening for interests and respond with dummy data
       startListener();
       
     },
@@ -252,8 +259,6 @@ AutoDiscovery::succeed(const FaceUri& hubFaceUri)
 void
 AutoDiscovery::provideHubFaceUri(const std::string& s)
 {
-
-std::cout << "provideHubFaceUri..." << std::endl;
 
   FaceUri u;
   if (u.parse(s)) {
