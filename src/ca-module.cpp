@@ -26,6 +26,9 @@
 #include <ndn-cxx/security/signing-helpers.hpp>
 #include <ndn-cxx/util/random.hpp>
 
+
+AutoSeededRandomPool rng;
+
 namespace ndn {
 namespace ndncert {
 
@@ -110,6 +113,17 @@ CaModule::registerPrefix()
         filterId = m_face.setInterestFilter(Name(name).append("_CERT"),
                                               bind(&CaModule::handleCert, this, _2, item));
         m_interestFilterIds.push_back(filterId);
+
+	
+	filterId = m_face.setInterestFilter(Name(name).append("_PubKey"),
+						bind(&CaModule::handlePubKey, this, _2, item));
+	m_interestFilterIds.push_back(filterId);
+
+	filterId = m_face.setInterestFilter(Name(name).append("_CHALL_RESP"),
+                                                bind(&CaModule::handleChallResp, this, _2, item));
+        m_interestFilterIds.push_back(filterId);
+	
+
         _LOG_TRACE("Prefix " << name << " got registered");
       },
       bind(&CaModule::onRegisterFailed, this, _2));
@@ -210,7 +224,7 @@ void
 CaModule::handleList(const Interest& request, const CaItem& caItem)
 {
   _LOG_TRACE("Got LIST request");
-
+  std::cout << "handleList called" << std::endl;
   bool getRecommendation = false;
   Name recommendedCaName;
   std::string identityName;
@@ -290,6 +304,7 @@ CaModule::handleProbe(const Interest& request, const CaItem& caItem)
    	}
    }
 */
+	std::cout << "handleProbe called " << request.getName().toUri() << std::endl;
 int verificationResult = CaModule::verifyInterest(request);
 if (verificationResult == CaVerifyInterest::SUCCESS) {
   // PROBE Naming Convention: /CA-prefix/CA/_PROBE/<Probe Information>
@@ -335,7 +350,7 @@ CaModule::handleNew(const Interest& request, const CaItem& caItem)
 {
   // NEW Naming Convention: /CA-prefix/CA/_NEW/<certificate-request>/[signature]
   _LOG_TRACE("Handle NEW request");
-
+  std::cout << "handleNew called" << std::endl;
   security::v2::Certificate clientCert;
   try {
     clientCert.wireDecode(request.getName().at(caItem.m_caName.size() + 2).blockFromValue());
@@ -387,7 +402,7 @@ CaModule::handleSelect(const Interest& request, const CaItem& caItem)
   // SELECT Naming Convention: /CA-prefix/CA/_SELECT/{Request-ID JSON}/<ChallengeID>/
   // {Param JSON}/[Signature components]
   _LOG_TRACE("Handle SELECT request");
-
+std::cout << "handleSelect called" << std::endl;
   CertificateRequest certRequest = getCertificateRequest(request, caItem.m_caName);
   if (certRequest.getRequestId().empty()) {
     return;
@@ -443,7 +458,7 @@ CaModule::handleValidate(const Interest& request, const CaItem& caItem)
   // VALIDATE Naming Convention: /CA-prefix/CA/_VALIDATE/{Request-ID JSON}/<ChallengeID>/
   // {Param JSON}/[Signature components]
   _LOG_TRACE("Handle VALIDATE request");
-
+std::cout << "handleValidate called " << request.getName().toUri() << std::endl;
   CertificateRequest certRequest = getCertificateRequest(request, caItem.m_caName);
   if (certRequest.getRequestId().empty()) {
     return;
@@ -473,8 +488,12 @@ CaModule::handleValidate(const Interest& request, const CaItem& caItem)
       return;
     }
   }
+  std::string message2 = to_string(rand()%99999999+10000000);
+  sentMessage = message2;
   Data result;
-  result.setName(request.getName());
+  Name dataName(request.getName());
+  dataName.append(message2);
+  result.setName(dataName);
   result.setContent(dataContentFromJson(contentJson));
   m_keyChain.sign(result, signingByIdentity(caItem.m_caName));
   m_face.put(result);
@@ -502,7 +521,7 @@ CaModule::handleStatus(const Interest& request, const CaItem& caItem)
 {  
   // STATUS Naming Convention: /CA-prefix/CA/_STATUS/{Request-ID JSON}/[Signature components]
   _LOG_TRACE("Handle STATUS request");
-
+std::cout << "handleStatus called" << std::endl;
   CertificateRequest certRequest = getCertificateRequest(request, caItem.m_caName);
   if (certRequest.getRequestId().empty()) {
     return;
@@ -531,11 +550,30 @@ CaModule::handleStatus(const Interest& request, const CaItem& caItem)
 void
 CaModule::handleDownload(const Interest& request, const CaItem& caItem)
 {
-int verificationResult = CaModule::verifyInterest(request);
-if (verificationResult == CaVerifyInterest::SUCCESS) {
+  if(request.hasApplicationParameters()){
+  Block signedMessage = request.getApplicationParameters();
+  std::string signedChall((char*)signedMessage.value(),signedMessage.value_size());
+  SecByteBlock signature((const byte*)signedChall.data(),signedChall.size());
+
+  RSASS<PSS, SHA1>::Verifier verifier( mobilePub );
+
+  // Verify
+  bool result = verifier.VerifyMessage( (const byte*)sentMessage.c_str(),
+  sentMessage.length(), signature, signature.size() );
+
+  // Result
+  if( true == result ) {
+  	std::cout << "Signature on message verified" << std::endl;
+  } else {
+        std::cout << "Message verification failed" << std::endl;
+        }
+  }
+  std::cout << "handleDownload called" << std::endl;
+  int verificationResult = CaModule::verifyInterest(request);
+  if (verificationResult == CaVerifyInterest::SUCCESS) {
   // DOWNLOAD Naming Convention: /CA-prefix/CA/_DOWNLOAD/{Request-ID JSON}
   _LOG_TRACE("Handle DOWNLOAD request");
-
+  
   Data result;
   result.setName(request.getName());
   if (readString(request.getName().at(-1)) == "ANCHOR") {
@@ -606,7 +644,7 @@ CaModule::handleCert(const Interest& request, const CaItem& caItem)
 {
   // CERT Naming Convention: /CA-prefix/CA/_CERT
   _LOG_TRACE("Handle CERT request");
-
+  std::cout << "handleCert called" << std::endl;
   std::string int_name = request.getName().toUri();
 
   if (int_name.find("_DATACERT") != std::string::npos) {
@@ -638,6 +676,89 @@ CaModule::handleCert(const Interest& request, const CaItem& caItem)
   }
 
 }
+
+
+void
+CaModule::handleChallResp(const Interest& request, const CaItem& caItem)
+{
+  std::string int_name = request.getName().toUri();
+  std::cout << int_name << std::endl;
+  // Since we know the length of the random number
+  std::string partOne = int_name.substr(int_name.find("_CHALL_RESP/")+12);
+  std::string message = partOne.substr(0, partOne.find("/"));
+  std::cout << message << std::endl;
+  RSASS<PSS, SHA1>::Signer signer( m_privKey );
+
+  // Create signature space
+  size_t length = signer.MaxSignatureLength();
+  std::cout << length <<std::endl;
+  SecByteBlock signature( length );
+
+        // Sign message
+  signer.SignMessage( rng, (const byte*) message.c_str(),
+  				message.length(), signature );
+
+  std::string token = std::string((char*)signature.data(),signature.size());
+
+  srand(8);
+  //std::string message2 = to_string(rand()%99999999+10000000);
+  //sentMessage = message2;
+  Data result;
+  Name dataName(request.getName());
+  //dataName.append(message2);
+  //result.setName(request.getName().append(message2));
+  result.setName(dataName);
+  std::cout << result.getName().toUri() << std::endl;
+  result.setFreshnessPeriod(time::seconds(4));
+  //Block signedMessage(reinterpret_cast<const uint8_t*>(token.data()), token.size());
+  //Block nothing;
+  result.setContent(reinterpret_cast<const uint8_t*>(token.data()), token.size());
+  m_keyChain.sign(result, signingByIdentity(caItem.m_caName));
+  m_face.put(result);
+
+}
+
+
+void
+CaModule::handlePubKey(const Interest& request, const CaItem& caItem)
+{
+  _LOG_TRACE("Handle PubKey request");
+  Block MTpub = request.getApplicationParameters();
+  std::string MTpubMaterial((char*)MTpub.value(), MTpub.value_size());
+  
+  std::cout << MTpubMaterial << std::endl;
+
+  RSA::PublicKey MTPublicKey;
+  StringSource stringSource(MTpubMaterial,true);
+  MTPublicKey.BERDecode(stringSource);
+  mobilePub = MTPublicKey;
+
+
+
+  // Generate public/private RSA pair
+  parameters.GenerateRandomWithKeySize(rng, 512);
+  RSA::PublicKey publicKey( parameters );
+  RSA::PrivateKey privateKey( parameters );
+  m_pubKey = publicKey;
+  m_privKey = privateKey;
+
+  // Convert public key to string so we can send it to MT
+  std::string pubKeyMaterial;
+  StringSink stringSink(pubKeyMaterial);
+  publicKey.DEREncode(stringSink);
+
+  std::cout << "PubKey " << pubKeyMaterial <<std::endl;
+  Data result;
+  result.setName(request.getName());
+  result.setFreshnessPeriod(time::seconds(4));
+  Block pubKeyContent(reinterpret_cast<const uint8_t*>(pubKeyMaterial.data()), pubKeyMaterial.size()); 
+  result.setContent(pubKeyContent);
+  m_keyChain.sign(result, signingByIdentity(caItem.m_caName));
+  m_face.put(result);
+
+}
+
+
 
 
 security::v2::Certificate

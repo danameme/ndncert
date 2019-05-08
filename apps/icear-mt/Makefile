@@ -1,4 +1,4 @@
-LIBS = -lndn-cxx -lboost_system -lpthread -lndncertclientshlib
+LIBS = -lndn-cxx -lboost_system -lpthread -lndncertclientshlib -lcryptopp
 NDNCERT_HEADERS = /usr/local/include/ndncert/
 SH_LIB_PATH = -L /usr/local/lib -Wl,-rpath=/usr/local/lib
 

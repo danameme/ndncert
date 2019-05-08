@@ -31,12 +31,14 @@
 #include <ndn-cxx/security/signing-helpers.hpp>
 #include <ndn-cxx/security/verification-helpers.hpp>
 
+
+
 ndn::Face face;   
 ndn::Face face2;
 ndn::security::KeyChain keyChain;
 std::string caName;
 std::string challengeType = "NOCHALL";
-std::string identity = "mobterm1";
+std::string identity = "mobterm3";
 std::string dataNamespace = "/ndn/ucla/cs/app/mobterm1";
 
 namespace ndn {
@@ -275,10 +277,12 @@ AutoDiscovery::provideHubFaceUri(const std::string& s)
 
 int
 main(int argc, char** argv)
-{
+{  
+        
+   
+        identity = argv[1];
 	ndn::nfd::Controller controller(face, keyChain);
 	ndn::autodiscovery::AutoDiscovery autodisc(face, controller);
-
 	autodisc.doStart();
 	face.processEvents();
 

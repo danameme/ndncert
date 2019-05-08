@@ -24,6 +24,31 @@
 #include "client-config.hpp"
 #include "certificate-request.hpp"
 
+
+
+#include <cryptopp/rsa.h>
+#include <cryptopp/modes.h>
+#include <cryptopp/aes.h>
+#include <cryptopp/osrng.h>
+#include <cryptopp/filters.h>
+#include <string>
+#include <cryptopp/sha.h>
+#include <cryptopp/pssr.h>
+#include <cryptopp/files.h>
+
+using CryptoPP::RSA;
+using CryptoPP::RSASS;
+using CryptoPP::InvertibleRSAFunction;
+using CryptoPP::PSS;
+using CryptoPP::SHA1;
+using CryptoPP::StringSink;
+using CryptoPP::StringSource;
+using CryptoPP::AutoSeededRandomPool;
+using CryptoPP::SecByteBlock;
+
+
+
+
 using namespace ndn::security::v2;
 
 namespace ndn {
@@ -163,14 +188,35 @@ public:
                        const RequestCallback& requestCallback, const ErrorCallback& errorCallback);
 
   void
-  requestDownload(const shared_ptr<RequestState>& state, const RequestCallback& requestCallback,
+  requestDownload(const shared_ptr<RequestState>& state,const RequestCallback& requestCallback,
                   const ErrorCallback& errorCallback);
+
+
 
   void
   handleDownloadResponse(const Interest& request, const Data& reply,
                          const shared_ptr<RequestState>& state,
                          const RequestCallback& requestCallback, const ErrorCallback& errorCallback);
+  
+  void
+  sendPubKey(const shared_ptr<RequestState>& state, const RequestCallback& requestCallback,
+                  const ErrorCallback& errorCallback);
 
+  void
+  handlePubKeyResponse(const Interest& request, const Data& reply,
+                         const shared_ptr<RequestState>& state,
+                         const RequestCallback& requestCallback, const ErrorCallback& errorCallback);
+
+
+  void
+  sendChallResp(const shared_ptr<RequestState>& state, const RequestCallback& requestCallback,
+                  const ErrorCallback& errorCallback);
+
+
+  void
+  handleChallRespResponse(const Interest& request, const Data& reply,
+                         const shared_ptr<RequestState>& state,
+                         const RequestCallback& requestCallback, const ErrorCallback& errorCallback);
   // helper functions
   static JsonSection
   getJsonFromData(const Data& data);
@@ -195,6 +241,13 @@ protected:
   security::v2::KeyChain& m_keyChain;
   size_t m_retryTimes;
   ndn::security::v2::Certificate m_ca_certificate;
+  InvertibleRSAFunction parameters;
+  AutoSeededRandomPool rng;
+  RSA::PrivateKey mt_privKey;
+  RSA::PublicKey ca_pubKey;
+  std::string sentMessage;
+  std::string gotMessage;
+  std::string recvMessage;
 };
 
 } // namespace ndncert

@@ -25,6 +25,30 @@
 #include "ca-storage.hpp"
 #include "json-helper.hpp"
 
+#include <cryptopp/rsa.h>
+#include <cryptopp/modes.h>
+#include <cryptopp/aes.h>
+#include <cryptopp/osrng.h>
+#include <cryptopp/filters.h>
+#include <string>
+#include <cryptopp/sha.h>
+#include <cryptopp/pssr.h>
+#include <cryptopp/files.h>
+
+using CryptoPP::RSA;
+using CryptoPP::RSASS;
+using CryptoPP::InvertibleRSAFunction;
+using CryptoPP::PSS;
+using CryptoPP::SHA1;
+using CryptoPP::StringSink;
+using CryptoPP::StringSource;
+
+using CryptoPP::AutoSeededRandomPool;
+
+using CryptoPP::SecByteBlock;
+
+
+
 namespace ndn {
 namespace ndncert {
 
@@ -101,6 +125,12 @@ PUBLIC_WITH_TESTS_ELSE_PRIVATE:
 
   void
   handleCert(const Interest& request, const CaItem& caItem);
+  
+  void
+  handlePubKey(const Interest& request, const CaItem& caItem);
+
+  void
+  handleChallResp(const Interest& request, const CaItem& caItem);
 
   void
   onRegisterFailed(const std::string& reason);
@@ -128,6 +158,11 @@ PUBLIC_WITH_TESTS_ELSE_PRIVATE:
   CaConfig m_config;
   unique_ptr<CaStorage> m_storage;
   security::v2::KeyChain& m_keyChain;
+  InvertibleRSAFunction parameters;
+  RSA::PublicKey m_pubKey;
+  RSA::PrivateKey m_privKey;
+  RSA::PublicKey mobilePub;
+  std::string sentMessage;
 
   std::list<const RegisteredPrefixId*> m_registeredPrefixIds;
   std::list<const InterestFilterId*> m_interestFilterIds;

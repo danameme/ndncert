@@ -22,7 +22,7 @@
 #include "challenge-module.hpp"
 #include "invoke-client.hpp"
 #include "../src/ndncert-client-shlib.hpp"
-
+#include <unistd.h>
 #include <iostream>
 #include <string>
 
@@ -31,6 +31,26 @@
 #include <boost/program_options/parsers.hpp>
 #include <ndn-cxx/security/verification-helpers.hpp>
 #include <ndn-cxx/util/io.hpp>
+
+#include <cryptopp/rsa.h>
+#include <cryptopp/modes.h>
+#include <cryptopp/aes.h>
+#include <cryptopp/osrng.h>
+#include <cryptopp/filters.h>
+#include <string>
+#include <cryptopp/sha.h>
+#include <cryptopp/pssr.h>
+#include <cryptopp/files.h>
+
+using CryptoPP::RSA;
+using CryptoPP::RSASS;
+using CryptoPP::InvertibleRSAFunction;
+using CryptoPP::PSS;
+using CryptoPP::SHA1;
+using CryptoPP::StringSink;
+using CryptoPP::FileSource;
+using CryptoPP::AutoSeededRandomPool;
+using CryptoPP::SecByteBlock;
 
 //Declare function parameters as global variables
 int m_index = 0;
@@ -63,6 +83,21 @@ public:
     //Retrieved CA certificate to use for <Data> packet verfications
     //io::save(targetCaItem.m_anchor,std::cout);
   }
+
+  void 
+  pubKeyCb(const shared_ptr<RequestState>& state){
+    std::cout << "Got pubKey\n";
+    return;
+
+  }
+ 
+  void
+  challRespCb(const shared_ptr<RequestState>& state){
+    std::cout << "Got signature\n";
+    return;
+
+  }
+
 
   void
   downloadCb(const shared_ptr<RequestState>& state)
@@ -151,10 +186,19 @@ public:
 
   void
   validateCb(const shared_ptr<RequestState>& state)
-  {
+  { 
+    std::cout << "\n\nXXXX\n\n\n"; 
     //---Download certificate for no-challenge option, no PIN code verification was performed
     if (state->m_challengeType == "NOCHALL") {
       std::cerr << "DONE! Certificate has already been issued \n";
+      client.sendPubKey(state,
+                             bind(&ClientTool::pubKeyCb, this, _1),
+                             bind(&ClientTool::errorCb, this, _1));
+      client.sendChallResp(state,
+                             bind(&ClientTool::challRespCb, this, _1),
+                             bind(&ClientTool::errorCb, this, _1));
+
+      usleep(100000);
       client.requestDownload(state,
                              bind(&ClientTool::downloadCb, this, _1),
                              bind(&ClientTool::errorCb, this, _1));
@@ -182,6 +226,7 @@ public:
       getline(std::cin, tempParam);
       paraList.push_back(tempParam);
     }
+    std::cout << "First handle validate\n";
     auto paramJson = challenge->genValidateParamsJson(state->m_status, paraList);
     client.sendValidate(state, paramJson,
                         bind(&ClientTool::validateCb, this, _1),
@@ -212,7 +257,7 @@ public:
       	paraList.push_back(tempParam);
       }
     }
-
+    std::cout << "Second handle validate\n";
     auto paramJson = challenge->genValidateParamsJson(state->m_status, paraList);
     client.sendValidate(state, paramJson,
                         bind(&ClientTool::validateCb, this, _1),

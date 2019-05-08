@@ -25,6 +25,30 @@
 #include <ndn-cxx/util/io.hpp>
 #include <ndn-cxx/security/signing-helpers.hpp>
 #include <ndn-cxx/security/verification-helpers.hpp>
+#include <cstdlib>
+/*
+#include <cryptopp/rsa.h>
+#include <cryptopp/modes.h>
+#include <cryptopp/aes.h>
+#include <cryptopp/osrng.h>
+#include <cryptopp/filters.h>
+#include <string>
+#include <cryptopp/sha.h>
+#include <cryptopp/pssr.h>
+#include <cryptopp/files.h>
+
+using CryptoPP::RSA;
+using CryptoPP::RSASS;
+using CryptoPP::InvertibleRSAFunction;
+using CryptoPP::PSS;
+using CryptoPP::SHA1;
+using CryptoPP::StringSink;
+using CryptoPP::StringSource;
+using CryptoPP::AutoSeededRandomPool;
+using CryptoPP::SecByteBlock;
+*/
+
+std::string stuff;
 
 namespace ndn {
 namespace ndncert {
@@ -411,7 +435,7 @@ ClientModule::handleValidateResponse(const Interest& request,
     errorCallback("Cannot verify data from " + state->m_ca.m_caName.toUri());
     return;
   }
-
+  gotMessage = reply.getName()[-1].toUri(); 
   JsonSection json = getJsonFromData(reply);
   state->m_status = json.get<std::string>(JSON_STATUS);
 
@@ -477,6 +501,19 @@ ClientModule::requestDownload(const shared_ptr<RequestState>& state,
                               const RequestCallback& requestCallback,
                               const ErrorCallback& errorCallback)
 {
+
+  RSASS<PSS, SHA1>::Signer signer( mt_privKey );
+  //recvMessage = "67547903";
+  // Create signature space
+  size_t length = signer.MaxSignatureLength();
+  SecByteBlock signature( length );
+
+  // Sign message
+  signer.SignMessage( rng, (const byte*) gotMessage.c_str(),
+                        gotMessage.length(), signature );
+
+  std::string token = std::string((char*)signature.data(),signature.size());
+
   JsonSection requestIdJson;
   requestIdJson.put(JSON_REQUEST_ID, state->m_requestId);
 
@@ -484,7 +521,7 @@ ClientModule::requestDownload(const shared_ptr<RequestState>& state,
   interestName.append("_DOWNLOAD").append(nameBlockFromJson(requestIdJson));
   Interest interest(interestName);
   interest.setMustBeFresh(true);
-
+  interest.setApplicationParameters(reinterpret_cast<const uint8_t*>(token.data()),token.size());
   DataCallback dataCb = bind(&ClientModule::handleDownloadResponse,
                              this, _1, _2, state, requestCallback, errorCallback);
   m_face.expressInterest(interest, dataCb,
@@ -493,6 +530,126 @@ ClientModule::requestDownload(const shared_ptr<RequestState>& state,
                               dataCb, errorCallback));
 
   _LOG_TRACE("DOWNLOAD interest sent");
+}
+
+
+void
+ClientModule::sendChallResp(const shared_ptr<RequestState>& state,
+                              const RequestCallback& requestCallback,
+                              const ErrorCallback& errorCallback)
+{
+  JsonSection requestIdJson;
+  requestIdJson.put(JSON_REQUEST_ID, state->m_requestId);
+  std::string randomNum = to_string(rand()%99999999+10000000);
+  sentMessage = randomNum;
+  //gotMessage = to_string(67547903);
+  Name interestName(state->m_ca.m_caName);
+  interestName.append("_CHALL_RESP").append(randomNum);
+  Interest interest(interestName);
+  interest.setMustBeFresh(true);
+
+  DataCallback dataCb = bind(&ClientModule::handleChallRespResponse,
+                             this, _1, _2, state, requestCallback, errorCallback);
+  m_face.expressInterest(interest, dataCb,
+                         bind(&ClientModule::onNack, this, _1, _2, errorCallback),
+                         bind(&ClientModule::onTimeout, this, _1, m_retryTimes,
+                              dataCb, errorCallback));
+
+  _LOG_TRACE("DOWNLOAD interest sent");
+  //std::cout << "the real thing " << gotMessage << std::endl;
+}
+
+
+void
+ClientModule::handleChallRespResponse(const Interest& request, const Data& reply,
+                                     const shared_ptr<RequestState>& state,
+                                     const RequestCallback& requestCallback,
+                                     const ErrorCallback& errorCallback)
+{
+  stuff = to_string(67547903);   //reply.getName()[-1].toUri();
+  std::cout << "what we got " << recvMessage <<std::endl;
+  Block signedMessage = reply.getContent();
+  std::string signedHolder((char*)signedMessage.value(), signedMessage.value_size());
+  SecByteBlock signature((const byte*)signedHolder.data(),signedHolder.size());
+  RSASS<PSS, SHA1>::Verifier verifier( ca_pubKey );
+
+  // Verify
+        bool result = verifier.VerifyMessage( (const byte*)sentMessage.c_str(),
+            sentMessage.length(), signature, signature.size() );
+
+        // Result
+        if( true == result ) {
+                std::cout << "Signature on message verified" << std::endl;
+        } else {
+                std::cout << "Message verification failed" << std::endl;
+        }
+ 
+ 
+  std::cout << reply.getName().toUri() << std::endl;
+  //exit(0);
+return;
+}
+
+
+void
+ClientModule::sendPubKey(const shared_ptr<RequestState>& state,
+                              const RequestCallback& requestCallback,
+                              const ErrorCallback& errorCallback)
+{
+
+  //InvertibleRSAFunction parameters;
+  //AutoSeededRandomPool rng;
+  parameters.GenerateRandomWithKeySize(rng, 512);
+  RSA::PrivateKey privateKey(parameters);
+  RSA::PublicKey publicKey( parameters );
+  mt_privKey = privateKey; 
+  std::string pubMat;
+  StringSink stringSink(pubMat);
+  publicKey.DEREncode(stringSink);
+  std::cout << pubMat << std::endl;
+  Block pubKeyContent(reinterpret_cast<const uint8_t*>(pubMat.data()), pubMat.size());
+
+  JsonSection requestIdJson;
+  requestIdJson.put(JSON_REQUEST_ID, state->m_requestId);
+
+  Name interestName(state->m_ca.m_caName);
+  interestName.append("_PubKey").append(nameBlockFromJson(requestIdJson));
+  Interest interest(interestName);
+  interest.setMustBeFresh(true);
+  interest.setApplicationParameters(pubKeyContent);
+  DataCallback dataCb = bind(&ClientModule::handlePubKeyResponse,
+                             this, _1, _2, state, requestCallback, errorCallback);
+  m_face.expressInterest(interest, dataCb,
+                         bind(&ClientModule::onNack, this, _1, _2, errorCallback),
+                         bind(&ClientModule::onTimeout, this, _1, m_retryTimes,
+                              dataCb, errorCallback));
+
+  _LOG_TRACE("DOWNLOAD interest sent");
+}
+
+
+void
+ClientModule::handlePubKeyResponse(const Interest& request, const Data& reply,
+                                     const shared_ptr<RequestState>& state,
+                                     const RequestCallback& requestCallback,
+                                     const ErrorCallback& errorCallback)
+{
+  //int v1 = rand()%99999999+10000000;
+  //std::cout << v1 << std::endl;
+  Block pubkey = reply.getContent();
+  std::string key((char*)pubkey.value(), pubkey.value_size());
+  std::cout << key << std::endl;
+  try{
+  RSA::PublicKey CApublicKey;
+  StringSource stringSource(key,true);
+  CApublicKey.BERDecode(stringSource);
+  ca_pubKey = CApublicKey;
+  }
+  catch(CryptoPP::Exception& e){
+    std::cerr << "Error: " << e.what() <<std::endl;
+  }
+  //exit(0);
+
 }
 
 void
