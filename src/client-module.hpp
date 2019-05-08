@@ -247,7 +247,6 @@ protected:
   RSA::PublicKey ca_pubKey;
   std::string sentMessage;
   std::string gotMessage;
-  std::string recvMessage;
 };
 
 } // namespace ndncert

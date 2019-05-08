@@ -48,7 +48,6 @@ using CryptoPP::AutoSeededRandomPool;
 using CryptoPP::SecByteBlock;
 */
 
-std::string stuff;
 
 namespace ndn {
 namespace ndncert {
@@ -566,8 +565,6 @@ ClientModule::handleChallRespResponse(const Interest& request, const Data& reply
                                      const RequestCallback& requestCallback,
                                      const ErrorCallback& errorCallback)
 {
-  stuff = to_string(67547903);   //reply.getName()[-1].toUri();
-  std::cout << "what we got " << recvMessage <<std::endl;
   Block signedMessage = reply.getContent();
   std::string signedHolder((char*)signedMessage.value(), signedMessage.value_size());
   SecByteBlock signature((const byte*)signedHolder.data(),signedHolder.size());
@@ -636,6 +633,7 @@ ClientModule::handlePubKeyResponse(const Interest& request, const Data& reply,
 {
   //int v1 = rand()%99999999+10000000;
   //std::cout << v1 << std::endl;
+  //gotMessage = to_string(67547903);
   Block pubkey = reply.getContent();
   std::string key((char*)pubkey.value(), pubkey.value_size());
   std::cout << key << std::endl;
