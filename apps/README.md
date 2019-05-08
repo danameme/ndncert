@@ -27,10 +27,23 @@ The discovery hub app in icear-ca performs the following functions:
 
 ## Setup
 
+Additional pre-requisites:
+```
+sudo apt-get install libcrypto++-dev libcrypto++-utils
+```
+
+
 ndncert installation:
 
 ```
 ./waf configure
+
+Edit the build/config.log file and add -lcryptopp to the line:
+out: -pthread -DBOOST_LOG_DYN_LINK -I/usr/local/include -L/usr/local/lib -pthread -lndn-cxx -lboost_system -lboost_program_options -lboost_chrono -lboost_date_time -lboost_filesystem -lboost_thread -lboost_log -lcrypto -lsqlite3 -lrt -lpthread
+
+Edit the build/c4che/_cache.py file and add cryptopp to the following list:
+LIB_NDN_CXX = [...]
+
 ./waf
 sudo ./waf install
 sudo ldconfig
