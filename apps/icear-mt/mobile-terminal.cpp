@@ -279,7 +279,10 @@ int
 main(int argc, char** argv)
 {  
         
-   
+        if(argc < 2){
+		std::cout << "Usage: ./mobile-terminal <identity>\n";
+		return 0;
+	}
         identity = argv[1];
 	ndn::nfd::Controller controller(face, keyChain);
 	ndn::autodiscovery::AutoDiscovery autodisc(face, controller);

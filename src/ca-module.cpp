@@ -551,23 +551,26 @@ void
 CaModule::handleDownload(const Interest& request, const CaItem& caItem)
 {
   if(request.hasApplicationParameters()){
-  Block signedMessage = request.getApplicationParameters();
-  std::string signedChall((char*)signedMessage.value(),signedMessage.value_size());
-  SecByteBlock signature((const byte*)signedChall.data(),signedChall.size());
+  	Block signedMessage = request.getApplicationParameters();
+  	std::string signedChall((char*)signedMessage.value(),signedMessage.value_size());
+  	SecByteBlock signature((const byte*)signedChall.data(),signedChall.size());
 
-  RSASS<PSS, SHA1>::Verifier verifier( mobilePub );
+  	RSASS<PSS, SHA1>::Verifier verifier( mobilePub );
 
-  // Verify
-  bool result = verifier.VerifyMessage( (const byte*)sentMessage.c_str(),
-  sentMessage.length(), signature, signature.size() );
+  	// Verify
+  	bool result = verifier.VerifyMessage( (const byte*)sentMessage.c_str(),
+  	sentMessage.length(), signature, signature.size() );
 
-  // Result
-  if( true == result ) {
-  	std::cout << "Signature on message verified" << std::endl;
-  } else {
-        std::cout << "Message verification failed" << std::endl;
+  	// Result
+  	if( true == result ) {
+  		std::cout << "Signature on message verified" << std::endl;
+  	} 
+  	else {
+        	std::cout << "Message verification failed" << std::endl;
+		return;
         }
   }
+
   std::cout << "handleDownload called" << std::endl;
   int verificationResult = CaModule::verifyInterest(request);
   if (verificationResult == CaVerifyInterest::SUCCESS) {
@@ -686,6 +689,7 @@ CaModule::handleChallResp(const Interest& request, const CaItem& caItem)
   // Since we know the length of the random number
   std::string partOne = int_name.substr(int_name.find("_CHALL_RESP/")+12);
   std::string message = partOne.substr(0, partOne.find("/"));
+  int ourSeed = stoi(message);
   std::cout << message << std::endl;
   RSASS<PSS, SHA1>::Signer signer( m_privKey );
 
@@ -700,7 +704,7 @@ CaModule::handleChallResp(const Interest& request, const CaItem& caItem)
 
   std::string token = std::string((char*)signature.data(),signature.size());
 
-  srand(8);
+  srand(ourSeed);
   //std::string message2 = to_string(rand()%99999999+10000000);
   //sentMessage = message2;
   Data result;

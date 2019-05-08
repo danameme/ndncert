@@ -10,4 +10,5 @@ mobile-terminal.o:	mobile-terminal.cpp
 	g++ -std=c++14 -I $(NDNCERT_HEADERS) -c mobile-terminal.cpp
 
 clean:
-	rm *.o
+	rm *.o 
+	rm mobile-terminal
