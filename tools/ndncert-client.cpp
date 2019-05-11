@@ -187,18 +187,21 @@ public:
   void
   validateCb(const shared_ptr<RequestState>& state)
   { 
-    std::cout << "\n\nXXXX\n\n\n"; 
     //---Download certificate for no-challenge option, no PIN code verification was performed
-    if (state->m_challengeType == "NOCHALL") {
+    //if(state->m_challengeType == "LOCATION"){
+      //return;//client.startListener();
+    //}
+    if (state->m_challengeType == "NOCHALL"||state->m_challengeType == "LOCATION") {
       std::cerr << "DONE! Certificate has already been issued \n";
+      /*
       client.sendPubKey(state,
                              bind(&ClientTool::pubKeyCb, this, _1),
                              bind(&ClientTool::errorCb, this, _1));
       client.sendChallResp(state,
                              bind(&ClientTool::challRespCb, this, _1),
                              bind(&ClientTool::errorCb, this, _1));
-
-      usleep(100000);
+      */
+      //usleep(100000);
       client.requestDownload(state,
                              bind(&ClientTool::downloadCb, this, _1),
                              bind(&ClientTool::errorCb, this, _1));
@@ -226,7 +229,6 @@ public:
       getline(std::cin, tempParam);
       paraList.push_back(tempParam);
     }
-    std::cout << "First handle validate\n";
     auto paramJson = challenge->genValidateParamsJson(state->m_status, paraList);
     client.sendValidate(state, paramJson,
                         bind(&ClientTool::validateCb, this, _1),
@@ -235,11 +237,11 @@ public:
 
   void
   selectCb(const shared_ptr<RequestState>& state)
-  {
+  { 
     auto challenge = ChallengeModule::createChallengeModule(state->m_challengeType);
     auto requirementList = challenge->getRequirementForValidate(state->m_status);
 
-    if (state->m_challengeType != "NOCHALL") {
+    if (state->m_challengeType != "NOCHALL" && state->m_challengeType != "LOCATION") {
     	std::cerr << "Step " << nStep++ << ": Please satisfy following instruction(s)" << std::endl;
     }
     for (auto item : requirementList) {
@@ -257,11 +259,11 @@ public:
       	paraList.push_back(tempParam);
       }
     }
-    std::cout << "Second handle validate\n";
     auto paramJson = challenge->genValidateParamsJson(state->m_status, paraList);
     client.sendValidate(state, paramJson,
                         bind(&ClientTool::validateCb, this, _1),
                         bind(&ClientTool::errorCb, this, _1));
+    return;
   }
 
   void
@@ -304,7 +306,6 @@ public:
 int
 main_entry()
 {
-
   namespace po = boost::program_options;
   std::string configFilePath = std::string(SYSCONFDIR) + "/ndncert/client.conf";
   bool isIntra = false;
@@ -344,6 +345,8 @@ main_entry()
   Face face;
   security::v2::KeyChain keyChain;
   ClientModule client(face, keyChain);
+  //ClientModule client2(face, keyChain);
+  //client2.startListener();
   client.getClientConf().load(configFilePath);
   ClientTool tool(client);
 
@@ -359,7 +362,6 @@ main_entry()
           if (m_ca_prefix == pref_name.substr(0,pref_len-3)) {
                 m_index = count;
           }
-
           std::cerr << "***************************************\n"
                     << "Index: " << count++ << "\n"
                     << "CA prefix:" << item.m_caName << "\n"
@@ -422,7 +424,6 @@ main_entry()
       if (m_ca_prefix == pref_name.substr(0,pref_len-3)) {
         m_index = count;
       }
-
       std::cerr << "***************************************\n"
                 << "Index: " << count++ << "\n"
                 << "CA prefix:" << item.m_caName << "\n"
@@ -442,7 +443,6 @@ main_entry()
 
     //Set the namespace to request certificate for
     targetCaItem.m_caName = m_ca_prefix + "/CA";
-
     //Get CA certificate to use for <Data> packet verifications
     client.sendCert(targetCaItem,
                            bind(&ClientTool::newCb, &tool, _1),
@@ -489,6 +489,7 @@ main_entry()
         client.sendProbe(targetCaItem, probeInfo,
                          bind(&ClientTool::newCb, &tool, _1),
                          bind(&ClientTool::errorCb, &tool, _1));
+	//exit(0);
       }
       else {
         std::cerr << "Step " << nStep++ << ": Please type in the identity name\n";

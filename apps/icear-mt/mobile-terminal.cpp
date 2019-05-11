@@ -37,7 +37,7 @@ ndn::Face face;
 ndn::Face face2;
 ndn::security::KeyChain keyChain;
 std::string caName;
-std::string challengeType = "NOCHALL";
+std::string challengeType = "LOCATION";
 std::string identity = "mobterm3";
 std::string dataNamespace = "/ndn/ucla/cs/app/mobterm1";
 

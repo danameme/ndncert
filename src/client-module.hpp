@@ -25,7 +25,7 @@
 #include "certificate-request.hpp"
 
 
-
+/*
 #include <cryptopp/rsa.h>
 #include <cryptopp/modes.h>
 #include <cryptopp/aes.h>
@@ -45,7 +45,7 @@ using CryptoPP::StringSink;
 using CryptoPP::StringSource;
 using CryptoPP::AutoSeededRandomPool;
 using CryptoPP::SecByteBlock;
-
+*/
 
 
 
@@ -93,7 +93,6 @@ public:
 
 public:
   ClientModule(Face& face, security::v2::KeyChain& keyChain, size_t retryTimes = 2);
-
   virtual
   ~ClientModule();
 
@@ -197,7 +196,7 @@ public:
   handleDownloadResponse(const Interest& request, const Data& reply,
                          const shared_ptr<RequestState>& state,
                          const RequestCallback& requestCallback, const ErrorCallback& errorCallback);
-  
+  /*  
   void
   sendPubKey(const shared_ptr<RequestState>& state, const RequestCallback& requestCallback,
                   const ErrorCallback& errorCallback);
@@ -217,6 +216,15 @@ public:
   handleChallRespResponse(const Interest& request, const Data& reply,
                          const shared_ptr<RequestState>& state,
                          const RequestCallback& requestCallback, const ErrorCallback& errorCallback);
+  void
+  startListener();
+
+  void
+  onInterest(const InterestFilter& filter, const Interest& interest);
+
+  void
+  onRegisterFailed(const Name& prefix, const std::string& reason);
+*/
   // helper functions
   static JsonSection
   getJsonFromData(const Data& data);
@@ -241,12 +249,15 @@ protected:
   security::v2::KeyChain& m_keyChain;
   size_t m_retryTimes;
   ndn::security::v2::Certificate m_ca_certificate;
+  /*
   InvertibleRSAFunction parameters;
   AutoSeededRandomPool rng;
   RSA::PrivateKey mt_privKey;
   RSA::PublicKey ca_pubKey;
   std::string sentMessage;
   std::string gotMessage;
+  int dataSentFlag;
+  */
 };
 
 } // namespace ndncert

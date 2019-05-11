@@ -24,7 +24,7 @@
 #include "ca-config.hpp"
 #include "ca-storage.hpp"
 #include "json-helper.hpp"
-
+/*
 #include <cryptopp/rsa.h>
 #include <cryptopp/modes.h>
 #include <cryptopp/aes.h>
@@ -47,7 +47,7 @@ using CryptoPP::AutoSeededRandomPool;
 
 using CryptoPP::SecByteBlock;
 
-
+*/
 
 namespace ndn {
 namespace ndncert {
@@ -125,13 +125,13 @@ PUBLIC_WITH_TESTS_ELSE_PRIVATE:
 
   void
   handleCert(const Interest& request, const CaItem& caItem);
-  
+  /* 
   void
   handlePubKey(const Interest& request, const CaItem& caItem);
 
   void
   handleChallResp(const Interest& request, const CaItem& caItem);
-
+ */
   void
   onRegisterFailed(const std::string& reason);
 
@@ -152,18 +152,33 @@ PUBLIC_WITH_TESTS_ELSE_PRIVATE:
 
   void
   registerPrefix();
+/*
+  void
+  startChallenge();
 
+  void
+  onDataChallenge(const Interest& interest, const Data& data);
+
+  void
+  onNackChallenge(const Interest& interest, const lp::Nack& nack);
+
+  void
+  onTimeoutChallenge(const Interest& interest); 
+*/
 PUBLIC_WITH_TESTS_ELSE_PRIVATE:
   Face& m_face;
   CaConfig m_config;
   unique_ptr<CaStorage> m_storage;
   security::v2::KeyChain& m_keyChain;
-  InvertibleRSAFunction parameters;
+  
+  //InvertibleRSAFunction parameters;
+  ndn::security::v2::Certificate m_mt_certificate;
+  /*
   RSA::PublicKey m_pubKey;
   RSA::PrivateKey m_privKey;
   RSA::PublicKey mobilePub;
   std::string sentMessage;
-
+  */
   std::list<const RegisteredPrefixId*> m_registeredPrefixIds;
   std::list<const InterestFilterId*> m_interestFilterIds;
 };

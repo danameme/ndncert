@@ -26,32 +26,9 @@
 #include <ndn-cxx/security/signing-helpers.hpp>
 #include <ndn-cxx/security/verification-helpers.hpp>
 #include <cstdlib>
-/*
-#include <cryptopp/rsa.h>
-#include <cryptopp/modes.h>
-#include <cryptopp/aes.h>
-#include <cryptopp/osrng.h>
-#include <cryptopp/filters.h>
-#include <string>
-#include <cryptopp/sha.h>
-#include <cryptopp/pssr.h>
-#include <cryptopp/files.h>
-
-using CryptoPP::RSA;
-using CryptoPP::RSASS;
-using CryptoPP::InvertibleRSAFunction;
-using CryptoPP::PSS;
-using CryptoPP::SHA1;
-using CryptoPP::StringSink;
-using CryptoPP::StringSource;
-using CryptoPP::AutoSeededRandomPool;
-using CryptoPP::SecByteBlock;
-*/
-
 
 namespace ndn {
 namespace ndncert {
-
 _LOG_INIT(ndncert.client);
 
 
@@ -356,6 +333,9 @@ ClientModule::sendSelect(const shared_ptr<RequestState>& state,
     .append(challengeType)
     .append(nameBlockFromJson(selectParams));
   Interest interest(interestName);
+  auto identity = m_keyChain.getPib().getIdentity(Name("/mobterm"));
+  auto cert = identity.getDefaultKey().getDefaultCertificate();
+  interest.setApplicationParameters(cert.wireEncode());
   m_keyChain.sign(interest, signingByKey(state->m_key.getName()));
 
   DataCallback dataCb = bind(&ClientModule::handleSelectResponse,
@@ -392,10 +372,56 @@ ClientModule::handleSelectResponse(const Interest& request,
   }
 
   _LOG_TRACE("Got SELECT response with status " << state->m_status);
-
+  //startListener();
   requestCallback(state);
 }
+/*
+void
+ClientModule::startListener(){
 
+  std::cout << "Waiting for location challenge interest from CA\n";
+  m_face.setInterestFilter("/CHALL/_LOCATION",
+                             bind(&ClientModule::onInterest, this, _1, _2),
+                             RegisterPrefixSuccessCallback(),
+                             bind(&ClientModule::onRegisterFailed, this, _1, _2));
+  //m_face2.processEvents();
+  //while(dataSentFlag == 0){
+     
+  //}
+
+
+}
+
+
+void
+ClientModule::onInterest(const InterestFilter& filter, const Interest& interest){
+    
+  std::cout << "Got interest: " << interest.getName() << std::endl;
+  auto identity = m_keyChain.getPib().getIdentity(Name("/mobterm"));
+  auto cert = identity.getDefaultKey().getDefaultCertificate();
+  Name dataName(interest.getName());
+
+  shared_ptr<Data> data = make_shared<Data>();
+  data->setName(dataName);
+  data->setFreshnessPeriod(10_s);
+  data->setContent(cert.wireEncode());
+  m_keyChain.sign(*data, signingByIdentity(Name("/mobterm")));
+  m_face2.put(*data);
+  usleep(10000);
+  m_face2.shutdown();
+
+}
+
+void
+ClientModule::onRegisterFailed(const Name& prefix, const std::string& reason)
+{
+    std::cerr << "ERROR: Failed to register prefix \""
+              << prefix << "\" in local hub's daemon (" << reason << ")"
+              << std::endl;
+    m_face2.shutdown();
+}
+
+*/
 void
 ClientModule::sendValidate(const shared_ptr<RequestState>& state,
                            const JsonSection& validateParams,
@@ -404,14 +430,20 @@ ClientModule::sendValidate(const shared_ptr<RequestState>& state,
 {
   JsonSection requestIdJson;
   requestIdJson.put(JSON_REQUEST_ID, state->m_requestId);
-
+  std::string challType = state->m_challengeType;
+  
   Name interestName(state->m_ca.m_caName);
   interestName.append("_VALIDATE")
     .append(nameBlockFromJson(requestIdJson))
     .append(state->m_challengeType)
     .append(nameBlockFromJson(validateParams));
   Interest interest(interestName);
+  if(challType == "LOCATION"){
+   m_keyChain.sign(interest,signingByIdentity(Name("/mobterm")));
+  }
+  else{
   m_keyChain.sign(interest, signingByKey(state->m_key.getName()));
+  }
 
   DataCallback dataCb = bind(&ClientModule::handleValidateResponse,
                              this, _1, _2, state, requestCallback, errorCallback);
@@ -434,7 +466,7 @@ ClientModule::handleValidateResponse(const Interest& request,
     errorCallback("Cannot verify data from " + state->m_ca.m_caName.toUri());
     return;
   }
-  gotMessage = reply.getName()[-1].toUri(); 
+  //gotMessage = reply.getName()[-1].toUri(); 
   JsonSection json = getJsonFromData(reply);
   state->m_status = json.get<std::string>(JSON_STATUS);
 
@@ -500,7 +532,7 @@ ClientModule::requestDownload(const shared_ptr<RequestState>& state,
                               const RequestCallback& requestCallback,
                               const ErrorCallback& errorCallback)
 {
-
+   /*
   RSASS<PSS, SHA1>::Signer signer( mt_privKey );
   //recvMessage = "67547903";
   // Create signature space
@@ -512,7 +544,7 @@ ClientModule::requestDownload(const shared_ptr<RequestState>& state,
                         gotMessage.length(), signature );
 
   std::string token = std::string((char*)signature.data(),signature.size());
-
+  */
   JsonSection requestIdJson;
   requestIdJson.put(JSON_REQUEST_ID, state->m_requestId);
 
@@ -520,7 +552,7 @@ ClientModule::requestDownload(const shared_ptr<RequestState>& state,
   interestName.append("_DOWNLOAD").append(nameBlockFromJson(requestIdJson));
   Interest interest(interestName);
   interest.setMustBeFresh(true);
-  interest.setApplicationParameters(reinterpret_cast<const uint8_t*>(token.data()),token.size());
+  //interest.setApplicationParameters(reinterpret_cast<const uint8_t*>(token.data()),token.size());
   DataCallback dataCb = bind(&ClientModule::handleDownloadResponse,
                              this, _1, _2, state, requestCallback, errorCallback);
   m_face.expressInterest(interest, dataCb,
@@ -531,7 +563,7 @@ ClientModule::requestDownload(const shared_ptr<RequestState>& state,
   _LOG_TRACE("DOWNLOAD interest sent");
 }
 
-
+/*
 void
 ClientModule::sendChallResp(const shared_ptr<RequestState>& state,
                               const RequestCallback& requestCallback,
@@ -649,7 +681,7 @@ ClientModule::handlePubKeyResponse(const Interest& request, const Data& reply,
   //exit(0);
 
 }
-
+*/
 void
 ClientModule::handleDownloadResponse(const Interest& request, const Data& reply,
                                      const shared_ptr<RequestState>& state,
