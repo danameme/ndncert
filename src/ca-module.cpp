@@ -27,7 +27,7 @@
 #include <ndn-cxx/util/random.hpp>
 #include <unistd.h>
 
-//AutoSeededRandomPool rng;
+AutoSeededRandomPool CA_rng;
 
 namespace ndn {
 namespace ndncert {
@@ -115,11 +115,12 @@ CaModule::registerPrefix()
                                               bind(&CaModule::handleCert, this, _2, item));
         m_interestFilterIds.push_back(filterId);
 
-	/*
-	filterId = m_face.setInterestFilter(Name(name).append("_PubKey"),
-						bind(&CaModule::handlePubKey, this, _2, item));
+	
+	filterId = m_face.setInterestFilter(Name(name).append("_KEY"),
+						bind(&CaModule::handleKey, this, _2, item));
 	m_interestFilterIds.push_back(filterId);
 
+        /*
 	filterId = m_face.setInterestFilter(Name(name).append("_CHALL_RESP"),
                                                 bind(&CaModule::handleChallResp, this, _2, item));
         m_interestFilterIds.push_back(filterId);
@@ -400,6 +401,7 @@ CaModule::handleSelect(const Interest& request, const CaItem& caItem)
   // SELECT Naming Convention: /CA-prefix/CA/_SELECT/{Request-ID JSON}/<ChallengeID>/
   // {Param JSON}/[Signature components]
 
+
   _LOG_TRACE("Handle SELECT request");
   CertificateRequest certRequest = getCertificateRequest(request, caItem.m_caName);
   if (certRequest.getRequestId().empty()) {
@@ -418,15 +420,6 @@ CaModule::handleSelect(const Interest& request, const CaItem& caItem)
   catch (const std::exception& e) {
     _LOG_ERROR(e.what());
     return;
-  }
-  if(challengeType == "LOCATION"){
-    if(request.hasApplicationParameters()){
-      Block b = request.getApplicationParameters();
-      ndn::security::v2::Certificate cert(b.blockFromValue());
-      m_mt_certificate = cert;
-      //exit(0);
-
-    }
   }
   _LOG_TRACE("SELECT request choosing challenge " << challengeType);
   auto challenge = ChallengeModule::createChallengeModule(challengeType);
@@ -447,20 +440,40 @@ CaModule::handleSelect(const Interest& request, const CaItem& caItem)
       return;
     }
   }
+  
+  if(challengeType == "LOCATION"){
+    std::string plain="123", cipher;
+    challSent = plain;
+    RSAES_OAEP_SHA_Encryptor e(mobilePub);
 
+    StringSource ss1(plain, true,
+        new PK_EncryptorFilter(CA_rng, e,
+                new StringSink(cipher)
+        ) // PK_EncryptorFilter
+    ); // StringSource
+    //exit(0);
+    Data result;
+    result.setName(request.getName());
+    result.setContent(reinterpret_cast<const uint8_t*>(cipher.data()), cipher.size());
+    m_keyChain.sign(result, signingByIdentity(caItem.m_caName));
+    m_face.put(result);
+    
+  }
+
+  else{
   Data result;
   result.setName(request.getName());
   result.setContent(dataContentFromJson(contentJson));
   m_keyChain.sign(result, signingByIdentity(caItem.m_caName));
   m_face.put(result);
   
-  if (caItem.m_statusUpdateCallback) {
+
+  }
+
+ if (caItem.m_statusUpdateCallback) {
     caItem.m_statusUpdateCallback(certRequest);
   }
-  //if(challengeType == "LOCATION"){
-    //usleep(1000000);
-   // startChallenge();
-  //}
+
 }
 /*
 void
@@ -518,12 +531,19 @@ CaModule::handleValidate(const Interest& request, const CaItem& caItem)
 
   std::string challengeType = certRequest.getChallengeType();
   if(challengeType == "LOCATION"){
-    if(!security::verifySignature(request,m_mt_certificate)){
-	std::cout << "Challenge failed\n";
-	return;
-    }
-    std::cout << "Challenge passed\n";
+     std::string recovered;
+     Block b = request.getApplicationParameters();
+     std::string cipher((char*)b.value(), b.value_size());
+
+     RSAES_OAEP_SHA_Decryptor d(m_privKey);
+     StringSource ss2(cipher, true,
+    	new PK_DecryptorFilter(CA_rng, d,
+        	new StringSink(recovered)
+   	) // PK_DecryptorFilter
+     ); // StringSource
+     std::cout << "Recovered " << recovered << std::endl;
   }
+
   else{
    if(!security::verifySignature(request, certRequest.getCert())){
      _LOG_TRACE("Interest with bad signature");
@@ -780,11 +800,13 @@ CaModule::handleChallResp(const Interest& request, const CaItem& caItem)
 
 }
 
-
+*/
 void
-CaModule::handlePubKey(const Interest& request, const CaItem& caItem)
+CaModule::handleKey(const Interest& request, const CaItem& caItem)
 {
   _LOG_TRACE("Handle PubKey request");
+
+  
   Block MTpub = request.getApplicationParameters();
   std::string MTpubMaterial((char*)MTpub.value(), MTpub.value_size());
   
@@ -798,7 +820,7 @@ CaModule::handlePubKey(const Interest& request, const CaItem& caItem)
 
 
   // Generate public/private RSA pair
-  parameters.GenerateRandomWithKeySize(rng, 512);
+  parameters.GenerateRandomWithKeySize(CA_rng, 512);
   RSA::PublicKey publicKey( parameters );
   RSA::PrivateKey privateKey( parameters );
   m_pubKey = publicKey;
@@ -820,7 +842,7 @@ CaModule::handlePubKey(const Interest& request, const CaItem& caItem)
 
 }
 
-*/
+
 
 
 security::v2::Certificate

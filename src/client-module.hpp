@@ -25,7 +25,7 @@
 #include "certificate-request.hpp"
 
 
-/*
+
 #include <cryptopp/rsa.h>
 #include <cryptopp/modes.h>
 #include <cryptopp/aes.h>
@@ -36,6 +36,10 @@
 #include <cryptopp/pssr.h>
 #include <cryptopp/files.h>
 
+using CryptoPP::RSAES_OAEP_SHA_Encryptor;
+using CryptoPP::RSAES_OAEP_SHA_Decryptor;
+using CryptoPP::SHA1;
+
 using CryptoPP::RSA;
 using CryptoPP::RSASS;
 using CryptoPP::InvertibleRSAFunction;
@@ -43,9 +47,19 @@ using CryptoPP::PSS;
 using CryptoPP::SHA1;
 using CryptoPP::StringSink;
 using CryptoPP::StringSource;
+
 using CryptoPP::AutoSeededRandomPool;
+
 using CryptoPP::SecByteBlock;
-*/
+
+using CryptoPP::PK_EncryptorFilter;
+using CryptoPP::PK_DecryptorFilter;
+
+
+using CryptoPP::Exception;
+using CryptoPP::DecodingResult;
+using std::exception;
+
 
 
 
@@ -196,17 +210,17 @@ public:
   handleDownloadResponse(const Interest& request, const Data& reply,
                          const shared_ptr<RequestState>& state,
                          const RequestCallback& requestCallback, const ErrorCallback& errorCallback);
-  /*  
+   
   void
-  sendPubKey(const shared_ptr<RequestState>& state, const RequestCallback& requestCallback,
+  sendKey(const shared_ptr<RequestState>& state, const RequestCallback& requestCallback,
                   const ErrorCallback& errorCallback);
 
   void
-  handlePubKeyResponse(const Interest& request, const Data& reply,
+  handleKeyResponse(const Interest& request, const Data& reply,
                          const shared_ptr<RequestState>& state,
                          const RequestCallback& requestCallback, const ErrorCallback& errorCallback);
 
-
+/*
   void
   sendChallResp(const shared_ptr<RequestState>& state, const RequestCallback& requestCallback,
                   const ErrorCallback& errorCallback);
@@ -249,15 +263,16 @@ protected:
   security::v2::KeyChain& m_keyChain;
   size_t m_retryTimes;
   ndn::security::v2::Certificate m_ca_certificate;
-  /*
+  
   InvertibleRSAFunction parameters;
   AutoSeededRandomPool rng;
   RSA::PrivateKey mt_privKey;
   RSA::PublicKey ca_pubKey;
-  std::string sentMessage;
-  std::string gotMessage;
-  int dataSentFlag;
-  */
+  std::string gotChall;
+  //std::string sentMessage;
+  //std::string gotMessage;
+  //int dataSentFlag;
+  
 };
 
 } // namespace ndncert

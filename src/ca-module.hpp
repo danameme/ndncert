@@ -24,7 +24,7 @@
 #include "ca-config.hpp"
 #include "ca-storage.hpp"
 #include "json-helper.hpp"
-/*
+
 #include <cryptopp/rsa.h>
 #include <cryptopp/modes.h>
 #include <cryptopp/aes.h>
@@ -34,6 +34,11 @@
 #include <cryptopp/sha.h>
 #include <cryptopp/pssr.h>
 #include <cryptopp/files.h>
+
+
+using CryptoPP::RSAES_OAEP_SHA_Encryptor;
+using CryptoPP::RSAES_OAEP_SHA_Decryptor;
+using CryptoPP::SHA1;
 
 using CryptoPP::RSA;
 using CryptoPP::RSASS;
@@ -47,7 +52,13 @@ using CryptoPP::AutoSeededRandomPool;
 
 using CryptoPP::SecByteBlock;
 
-*/
+using CryptoPP::PK_EncryptorFilter;
+using CryptoPP::PK_DecryptorFilter;
+
+
+using CryptoPP::Exception;
+using CryptoPP::DecodingResult;
+using std::exception;
 
 namespace ndn {
 namespace ndncert {
@@ -125,10 +136,10 @@ PUBLIC_WITH_TESTS_ELSE_PRIVATE:
 
   void
   handleCert(const Interest& request, const CaItem& caItem);
-  /* 
+  
   void
-  handlePubKey(const Interest& request, const CaItem& caItem);
-
+  handleKey(const Interest& request, const CaItem& caItem);
+/*
   void
   handleChallResp(const Interest& request, const CaItem& caItem);
  */
@@ -171,14 +182,14 @@ PUBLIC_WITH_TESTS_ELSE_PRIVATE:
   unique_ptr<CaStorage> m_storage;
   security::v2::KeyChain& m_keyChain;
   
-  //InvertibleRSAFunction parameters;
+  InvertibleRSAFunction parameters;
   ndn::security::v2::Certificate m_mt_certificate;
-  /*
+  
   RSA::PublicKey m_pubKey;
   RSA::PrivateKey m_privKey;
   RSA::PublicKey mobilePub;
-  std::string sentMessage;
-  */
+  std::string challSent;
+  
   std::list<const RegisteredPrefixId*> m_registeredPrefixIds;
   std::list<const InterestFilterId*> m_interestFilterIds;
 };

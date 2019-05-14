@@ -333,9 +333,9 @@ ClientModule::sendSelect(const shared_ptr<RequestState>& state,
     .append(challengeType)
     .append(nameBlockFromJson(selectParams));
   Interest interest(interestName);
-  auto identity = m_keyChain.getPib().getIdentity(Name("/mobterm"));
-  auto cert = identity.getDefaultKey().getDefaultCertificate();
-  interest.setApplicationParameters(cert.wireEncode());
+  //auto identity = m_keyChain.getPib().getIdentity(Name("/mobterm"));
+  //auto cert = identity.getDefaultKey().getDefaultCertificate();
+  //interest.setApplicationParameters(cert.wireEncode());
   m_keyChain.sign(interest, signingByKey(state->m_key.getName()));
 
   DataCallback dataCb = bind(&ClientModule::handleSelectResponse,
@@ -359,20 +359,35 @@ ClientModule::handleSelectResponse(const Interest& request,
     errorCallback("Cannot verify data from " + state->m_ca.m_caName.toUri());
     return;
   }
-
-  JsonSection json = getJsonFromData(reply);
-
+  
+  std::string recovered;
+  RSAES_OAEP_SHA_Decryptor d(mt_privKey);
+  Block b = reply.getContent();
+  std::string cipher((char*)b.value(), b.value_size());
+  
+  StringSource ss2(cipher, true,
+    new PK_DecryptorFilter(rng, d,
+        new StringSink(recovered)
+    ) // PK_DecryptorFilter
+  ); // StringSource
+  std::cout << "REC " << recovered << std::endl; 
+  gotChall = recovered;
+  //JsonSection json = getJsonFromData(reply);
+  //std::cout << "STATE " << json.get<std::string>(JSON_STATUS) << std::endl;
+  //exit(0);
+/*
   _LOG_TRACE("SELECT response would change the status from "
              << state->m_status << " to " + json.get<std::string>(JSON_STATUS));
-
-  state->m_status = json.get<std::string>(JSON_STATUS);
-
+*/
+  state->m_status = "no-code";
+  
+  /*
   if (!checkStatus(*state, json, errorCallback)) {
     return;
   }
+  */
 
   _LOG_TRACE("Got SELECT response with status " << state->m_status);
-  //startListener();
   requestCallback(state);
 }
 /*
@@ -439,7 +454,19 @@ ClientModule::sendValidate(const shared_ptr<RequestState>& state,
     .append(nameBlockFromJson(validateParams));
   Interest interest(interestName);
   if(challType == "LOCATION"){
-   m_keyChain.sign(interest,signingByIdentity(Name("/mobterm")));
+    std::string cipher;
+    RSAES_OAEP_SHA_Encryptor e(ca_pubKey);
+
+    StringSource ss1(gotChall, true,
+        new PK_EncryptorFilter(rng, e,
+                new StringSink(cipher)
+        ) // PK_EncryptorFilter
+    ); // StringSource
+  //Block cipherMat(reinterpret_cast<const uint8_t*>(cipher.data()), cipher.size());
+  
+  interest.setApplicationParameters(reinterpret_cast<const uint8_t*>(cipher.data()), cipher.size());
+  m_keyChain.sign(interest, signingByKey(state->m_key.getName())); 
+   //m_keyChain.sign(interest,signingByIdentity(Name("/mobterm")));
   }
   else{
   m_keyChain.sign(interest, signingByKey(state->m_key.getName()));
@@ -619,9 +646,9 @@ ClientModule::handleChallRespResponse(const Interest& request, const Data& reply
 return;
 }
 
-
+*/
 void
-ClientModule::sendPubKey(const shared_ptr<RequestState>& state,
+ClientModule::sendKey(const shared_ptr<RequestState>& state,
                               const RequestCallback& requestCallback,
                               const ErrorCallback& errorCallback)
 {
@@ -642,11 +669,11 @@ ClientModule::sendPubKey(const shared_ptr<RequestState>& state,
   requestIdJson.put(JSON_REQUEST_ID, state->m_requestId);
 
   Name interestName(state->m_ca.m_caName);
-  interestName.append("_PubKey").append(nameBlockFromJson(requestIdJson));
+  interestName.append("_KEY").append(nameBlockFromJson(requestIdJson));
   Interest interest(interestName);
   interest.setMustBeFresh(true);
   interest.setApplicationParameters(pubKeyContent);
-  DataCallback dataCb = bind(&ClientModule::handlePubKeyResponse,
+  DataCallback dataCb = bind(&ClientModule::handleKeyResponse,
                              this, _1, _2, state, requestCallback, errorCallback);
   m_face.expressInterest(interest, dataCb,
                          bind(&ClientModule::onNack, this, _1, _2, errorCallback),
@@ -658,7 +685,7 @@ ClientModule::sendPubKey(const shared_ptr<RequestState>& state,
 
 
 void
-ClientModule::handlePubKeyResponse(const Interest& request, const Data& reply,
+ClientModule::handleKeyResponse(const Interest& request, const Data& reply,
                                      const shared_ptr<RequestState>& state,
                                      const RequestCallback& requestCallback,
                                      const ErrorCallback& errorCallback)
@@ -681,7 +708,7 @@ ClientModule::handlePubKeyResponse(const Interest& request, const Data& reply,
   //exit(0);
 
 }
-*/
+
 void
 ClientModule::handleDownloadResponse(const Interest& request, const Data& reply,
                                      const shared_ptr<RequestState>& state,

@@ -294,6 +294,9 @@ public:
       }
     }
     auto paramJson = challenge->genSelectParamsJson(state->m_status, paraList);
+    client.sendKey(state,
+                      bind(&ClientTool::pubKeyCb, this, _1),
+                      bind(&ClientTool::errorCb, this, _1));
     client.sendSelect(state, choice, paramJson,
                       bind(&ClientTool::selectCb, this, _1),
                       bind(&ClientTool::errorCb, this, _1));
