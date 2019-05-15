@@ -30,7 +30,8 @@
 #include <boost/program_options/parsers.hpp>
 #include <boost/date_time/posix_time/posix_time_duration.hpp>
 #include <boost/asio.hpp>
-
+#include <ctime>
+#include <cstdlib>
 namespace ndn {
 namespace ndncert {
 

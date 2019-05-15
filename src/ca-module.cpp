@@ -26,13 +26,16 @@
 #include <ndn-cxx/security/signing-helpers.hpp>
 #include <ndn-cxx/util/random.hpp>
 #include <unistd.h>
+#include <string>
+#include <ctime>
+#include <cstdlib>
+
 
 AutoSeededRandomPool CA_rng;
 
 namespace ndn {
 namespace ndncert {
 Face m_chall_face;
-
 _LOG_INIT(ndncert.ca);
 
 CaModule::CaModule(Face& face, security::v2::KeyChain& keyChain,
@@ -440,10 +443,22 @@ CaModule::handleSelect(const Interest& request, const CaItem& caItem)
       return;
     }
   }
-  
+  // Generate a challenge
   if(challengeType == "LOCATION"){
-    std::string plain="123", cipher;
-    challSent = plain;
+    //unsigned int time_ui = time(0);
+    //srand(time(NULL));
+     srand((unsigned)std::time(0));  
+    int number1 = rand() % 999999999 + 100000;
+    int number2 = rand() % 10 + 100;
+    int finalChall = number1/number2;
+    std::string plain = to_string(number1) + "/" + to_string(number2);
+    // Store result for future comparison
+    challSent = to_string(finalChall);
+    std::cout << "SENT " << finalChall << std::endl;
+    
+    
+    std::string cipher;
+    //challSent = plain;
     RSAES_OAEP_SHA_Encryptor e(mobilePub);
 
     StringSource ss1(plain, true,
@@ -542,6 +557,13 @@ CaModule::handleValidate(const Interest& request, const CaItem& caItem)
    	) // PK_DecryptorFilter
      ); // StringSource
      std::cout << "Recovered " << recovered << std::endl;
+     if(recovered == challSent){
+       std::cout << "Challenge passed!\n";
+
+     }
+     else{
+	std::cout << "Challenge failed\n";
+     }
   }
 
   else{
@@ -810,7 +832,6 @@ CaModule::handleKey(const Interest& request, const CaItem& caItem)
   Block MTpub = request.getApplicationParameters();
   std::string MTpubMaterial((char*)MTpub.value(), MTpub.value_size());
   
-  std::cout << MTpubMaterial << std::endl;
 
   RSA::PublicKey MTPublicKey;
   StringSource stringSource(MTpubMaterial,true);
@@ -831,7 +852,6 @@ CaModule::handleKey(const Interest& request, const CaItem& caItem)
   StringSink stringSink(pubKeyMaterial);
   publicKey.DEREncode(stringSink);
 
-  std::cout << "PubKey " << pubKeyMaterial <<std::endl;
   Data result;
   result.setName(request.getName());
   result.setFreshnessPeriod(time::seconds(4));

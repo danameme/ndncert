@@ -364,14 +364,21 @@ ClientModule::handleSelectResponse(const Interest& request,
   RSAES_OAEP_SHA_Decryptor d(mt_privKey);
   Block b = reply.getContent();
   std::string cipher((char*)b.value(), b.value_size());
-  
+
+  // Decrypt message
   StringSource ss2(cipher, true,
     new PK_DecryptorFilter(rng, d,
         new StringSink(recovered)
     ) // PK_DecryptorFilter
   ); // StringSource
-  std::cout << "REC " << recovered << std::endl; 
-  gotChall = recovered;
+  std::cout << "Decrypted: " << recovered << std::endl; 
+  int number1 = stoi(recovered.substr(0,recovered.find("/")));
+  int number2 = stoi(recovered.substr(recovered.find("/")+1));
+  int result = number1/number2;
+  gotChall = to_string(result);
+  std:: cout << "Result: " << gotChall << std::endl;
+  //exit(0);
+  //gotChall = recovered;
   //JsonSection json = getJsonFromData(reply);
   //std::cout << "STATE " << json.get<std::string>(JSON_STATUS) << std::endl;
   //exit(0);
@@ -662,7 +669,6 @@ ClientModule::sendKey(const shared_ptr<RequestState>& state,
   std::string pubMat;
   StringSink stringSink(pubMat);
   publicKey.DEREncode(stringSink);
-  std::cout << pubMat << std::endl;
   Block pubKeyContent(reinterpret_cast<const uint8_t*>(pubMat.data()), pubMat.size());
 
   JsonSection requestIdJson;
@@ -695,7 +701,6 @@ ClientModule::handleKeyResponse(const Interest& request, const Data& reply,
   //gotMessage = to_string(67547903);
   Block pubkey = reply.getContent();
   std::string key((char*)pubkey.value(), pubkey.value_size());
-  std::cout << key << std::endl;
   try{
   RSA::PublicKey CApublicKey;
   StringSource stringSource(key,true);
