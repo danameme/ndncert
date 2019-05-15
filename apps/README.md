@@ -27,12 +27,20 @@ The discovery hub app in icear-ca performs the following functions:
 
 ## Setup
 
-
+Additional pre-requisites:
+```
+sudo apt-get install libcrypto++-dev libcrypto++-utils
+```
 
 ndncert installation:
 
 ```
 ./waf configure
+
+The '-lcryptopp' flag needs to be included in the build/config.log file for compilation.
+
+The 'cryptopp' needs to be added to the build/c4che/_cache.py file for compilation.
+
 ./waf
 sudo ./waf install
 sudo ldconfig
