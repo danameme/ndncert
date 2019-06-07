@@ -63,9 +63,11 @@ On the device that will be running the mobile terminal:
 :~$ cd ndncert/apps/icear-mt
 :~$ sudo cp client.conf /usr/local/etc/ndncert/client.conf
 ```
-We also assume that the MT will have a self signed certificate for challenge purposes. Our example:
+We also assume that the MT has previously set up the faces/routes to the CA for getting certificates. Getting the Trust Anchor is done by multicast. The MT will also have a self signed certificate for challenge purposes. Our example:
 ```
 ndnsec-keygen -i /mobterm
+nfdc face create udp://<CAaddress>
+nfdc route add /ndn/ucla/compSci/15 <CAfaceID>
 ```
 
 We assume that all nodes are connected to a dummy access point and have IP addresses.
@@ -76,6 +78,7 @@ We also assume the edge node has previously set up the faces/routes to the CA an
 nfdc face create udp://<CAaddress>
 nfdc face create udp://<MTaddress>
 nfdc route add /localhop/ndn-autoconf/CA <CAfaceID>
+nfdc route add /ndn/ucla/compSci/15 <CAfaceID>
 nfdc route add /ndn/ucla/cs/app/mobterm1 <MTfaceID>
 ```
 
@@ -108,6 +111,36 @@ ndncert/apps/icear-en/edge-node
 ```
 
 
+### Docker Execution Instructions
 
+Follow the following procedure to execute from a Docker image. Three containers, each for CA, MT and EN, will be run.
 
+On CA device, run the first docker container and execute the apps within the container:
+```
+sudo docker run -i -t amemedan/ndn:icearv2 bash
+nfd-start
+ndnsec-keygen -i /ndn/ucla/compSci/15
+ndncert-ca-server [this can be run in Linux screen session]
+discoveryHub [make and run from directory ndncert/apps/icear-ca/]
+```
 
+On MT device, run the second docker container and execute the apps within the container:
+```
+sudo docker run -i -t amemedan/ndn:icearv2 bash
+nfd-start
+nfdc face create udp://<CAaddress>
+nfdc route add /ndn/ucla/compSci/15 <CAfaceID>
+mobile-terminal [make and run from directory ndncert/apps/icear-mt/]
+```
+
+On EN device, run the first docker container and execute the apps within the container:
+```
+sudo docker run -i -t amemedan/ndn:icearv2 bash
+nfd-start
+nfdc face create udp://<CAaddress>
+nfdc face create udp://<MTaddress>
+nfdc route add /localhop/ndn-autoconf/CA <CAfaceID>
+nfdc route add /ndn/ucla/compSci/15 <CAfaceID>
+nfdc route add /ndn/ucla/cs/app/mobterm1 <MTfaceID>
+edge-node [make and run from directory ndncert/apps/icear-en/]
+```
