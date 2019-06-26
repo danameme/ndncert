@@ -74,7 +74,7 @@ private:
     data->setContent(cert.wireEncode());
 
     // Sign Data packet with default identity for Trust Anchor
-    m_keyChain.sign(*data, ndn::security::signingByIdentity(Name("/ndn/ucla/compSci/15")));
+    m_keyChain.sign(*data, ndn::security::signingWithSha256());
 
     // Return Data packet to the requester
     std::cout << ">> D: " << *data << std::endl;
