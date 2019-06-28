@@ -43,6 +43,7 @@ def configure(conf):
                    " (https://redmine.named-data.net/projects/nfd/wiki/Boost_FAQ)")
         return
 
+    conf.env['LIB_CRYPTOPP'] = 'cryptopp'
     conf.check_compiler_flags()
 
     # Loading "late" to prevent tests from being compiled with profiling flags
@@ -66,7 +67,7 @@ def build(bld):
         source =  bld.path.ant_glob(['src/**/*.cpp']),
         vnum = VERSION,
         cnum = VERSION,
-        use = 'NDN_CXX BOOST',
+        use = 'NDN_CXX BOOST CRYPTOPP',
         includes = ['src'],
         export_includes=['src'],
         install_path='${LIBDIR}'

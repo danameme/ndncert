@@ -28,7 +28,6 @@
 #include <fstream>
 #include <iostream>
 
-#include "ndncert-client-shlib.hpp"
 
 std::string namespace_prefix = "/localhop/ndn-autoconf/CA";
 ndn::security::v2::Certificate dataCert;
