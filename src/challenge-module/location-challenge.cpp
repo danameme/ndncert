@@ -30,7 +30,6 @@ _LOG_INIT(ndncert.location-challenge);
 
 NDNCERT_REGISTER_CHALLENGE(LocationChallenge, "LOCATION");
 
-
 const std::string LocationChallenge::NO_CODE = "no-code";
 const std::string LocationChallenge::WRONG_CODE = "wrong-code";
 
@@ -40,8 +39,6 @@ const std::string LocationChallenge::FAILURE_MAXRETRY = "failure-max-retry";
 const std::string LocationChallenge::JSON_CODE_TP = "code-timepoint";
 const std::string LocationChallenge::JSON_PIN_CODE = "code";
 const std::string LocationChallenge::JSON_ATTEMPT_TIMES = "attempt-times";
-
-
 
 LocationChallenge::LocationChallenge()
   : ChallengeModule("LOCATION")
@@ -65,11 +62,11 @@ LocationChallenge::processSelectInterest(const Interest& interest, CertificateRe
 JsonSection
 LocationChallenge::processValidateInterest(const Interest& interest, CertificateRequest& request)
 {
-    //---Validate certificate without any challenge-reponse
-    request.setStatus(SUCCESS);
-    request.setChallengeSecrets(JsonSection());
-    Name downloadName = genDownloadName(request.getCaName(), request.getRequestId());
-    return genResponseChallengeJson(request.getRequestId(), CHALLENGE_TYPE, SUCCESS, downloadName);
+  //---Validate certificate without any challenge-reponse
+  request.setStatus(SUCCESS);
+  request.setChallengeSecrets(JsonSection());
+  Name downloadName = genDownloadName(request.getCaName(), request.getRequestId());
+  return genResponseChallengeJson(request.getRequestId(), CHALLENGE_TYPE, SUCCESS, downloadName);
 }
 
 std::list<std::string>
@@ -94,7 +91,7 @@ LocationChallenge::getValidateRequirements(const std::string& status)
 
 JsonSection
 LocationChallenge::doGenSelectParamsJson(const std::string& status,
-                                    const std::list<std::string>& paramList)
+                                         const std::list<std::string>& paramList)
 {
   JsonSection result;
   BOOST_ASSERT(status == WAIT_SELECTION);
@@ -104,7 +101,7 @@ LocationChallenge::doGenSelectParamsJson(const std::string& status,
 
 JsonSection
 LocationChallenge::doGenValidateParamsJson(const std::string& status,
-                                      const std::list<std::string>& paramList)
+                                           const std::list<std::string>& paramList)
 {
   JsonSection result;
   BOOST_ASSERT(paramList.size() == 1);
@@ -124,7 +121,7 @@ LocationChallenge::parseStoredSecrets(const JsonSection& storedSecrets)
 
 JsonSection
 LocationChallenge::generateStoredSecrets(const time::system_clock::TimePoint& tp,
-                                    const std::string& secretCode, int attempTimes)
+                                         const std::string& secretCode, int attempTimes)
 {
   JsonSection json;
   json.put(JSON_CODE_TP, time::toIsoString(tp));

@@ -2,14 +2,13 @@
 
 #include "mobile-terminal.hpp"
 
-#include "ndncert-client-shlib.hpp"
-
 #include <ndn-cxx/encoding/tlv-nfd.hpp>
 #include <ndn-cxx/security/key-chain.hpp>
 #include <ndn-cxx/security/signing-helpers.hpp>
 #include <ndn-cxx/security/verification-helpers.hpp>
 #include <ndn-cxx/lp/tags.hpp>
 
+#include <iostream>
 #include <boost/lexical_cast.hpp>
 #include <boost/exception/diagnostic_information.hpp>
 
@@ -212,8 +211,8 @@ AutoDiscovery::RunNdncert(const Name& caPrefix, uint64_t faceId)
       std::cout << "\nGetting certificate from CA for " << caPrefix << "/" << identity << "\n";
 
       try {
-        NdnCertClientShLib cl;
-        this->retval = cl.RunNdnCertClient(caPrefix.toUri(), identity, challengeType);
+        // NdnCertClientShLib cl;
+        // this->retval = cl.RunNdnCertClient(caPrefix.toUri(), identity, challengeType);
         // how to actually set value of issued cert name?
       }
       catch (const std::exception& error) {
@@ -247,5 +246,4 @@ main(int argc, char** argv)
   autodisc.doStart();
 
   return autodisc.retval;
-
 }

@@ -4,8 +4,8 @@ top = '..'
 
 def build(bld):
 
-    for app in ['icear-ca', 'icear-en', 'icear-mt']:
+    for app in ['icear-ca', 'icear-mt']:
         bld(features='cxxprogram cxx',
             target='../bin/%s' % app,
             source=bld.path.ant_glob(['%s/*.cpp' % app]),
-            use='ndncertclientshlib')
+            use='ndn-cert')

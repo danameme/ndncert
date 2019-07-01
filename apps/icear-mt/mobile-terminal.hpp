@@ -8,9 +8,10 @@
 #include <ndn-cxx/mgmt/nfd/face-status.hpp>
 #include <ndn-cxx/net/face-uri.hpp>
 
+#include "location-client-tool.hpp"
+
 namespace ndn {
 namespace autodiscovery {
-
 
 class AutoDiscovery
 {
@@ -59,6 +60,7 @@ private:
   KeyChain m_keyChain;
   nfd::Controller m_controller;
   Scheduler m_scheduler;
+  std::unique_ptr<ndncert::LocationClientTool> m_ndncertTool;
 
   int m_nRegs = 0;
   int m_nRegSuccess = 0;

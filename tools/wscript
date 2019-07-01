@@ -4,10 +4,10 @@ top = '..'
 
 def build(bld):
 
-    bld(features='cxx cxxprogram',
-        target='../bin/ndncert-client',
-        source='ndncert-client.cpp',
-        use='ndn-cert')
+    # bld(features='cxx cxxprogram',
+    #     target='../bin/ndncert-client',
+    #     source='ndncert-client.cpp',
+    #     use='ndn-cert')
 
     bld(features='cxx cxxprogram',
         target='../bin/ndncert-ca-server',

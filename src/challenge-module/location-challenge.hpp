@@ -27,24 +27,6 @@
 namespace ndn {
 namespace ndncert {
 
-/**
- * @brief Provide PIN code based challenge
- *
- * @sa https://github.com/named-data/ndncert/wiki/NDN-Certificate-Management-Protocol
- *
- * The main process of this challenge module is:
- *   1. End entity provides empty string. The first POLL is only for selection.
- *   2. The challenge module will generate a PIN code in ChallengeDefinedField.
- *   3. End entity provides the verification code from some way to challenge module.
- *
- * There are four specific status defined in this challenge:
- *   NEED_CODE: When selection is made.
- *   WRONG_CODE: Get wrong verification code but still with secret lifetime and max retry times.
- *
- * Failure info when application fails:
- *   FAILURE_TIMEOUT: When secret is out-dated.
- *   FAILURE_MAXRETRY: When requester tries too many times.
- */
 class LocationChallenge : public ChallengeModule
 {
 public:

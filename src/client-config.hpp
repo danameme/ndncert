@@ -82,7 +82,7 @@ public:
 
 public:
   std::list<ClientCaItem> m_caItems;
-  std::string m_localNdncertAnchor;
+  security::v2::Certificate m_localNdncertAnchor;
 };
 
 } // namespace ndncert

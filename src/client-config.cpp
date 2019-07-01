@@ -52,7 +52,16 @@ ClientConfig::load(const JsonSection& configSection)
   for (; it != caList.end(); it++) {
     m_caItems.push_back(extractCaItem(it->second));
   }
-  m_localNdncertAnchor = configSection.get("local-ndncert-anchor", "");
+  auto anchor = configSection.get("local-ndncert-anchor", "");
+  if (!anchor.empty() && anchor[0] == '/') {
+    // assume file
+    m_localNdncertAnchor = *(io::load<security::v2::Certificate>(anchor));
+  }
+  else {
+    // assume base64
+    std::istringstream ss(configSection.get<std::string>("certificate"));
+    m_localNdncertAnchor = *(io::load<security::v2::Certificate>(ss));
+  }
 }
 
 ClientCaItem
