@@ -388,6 +388,8 @@ ClientModule::sendValidate(const shared_ptr<RequestState>& state,
   Interest interest(interestName);
   if(challType == "LOCATION"){
   auto buff = caPubKey.encrypt(reinterpret_cast<const uint8_t *>(gotChall.data()), gotChall.size());
+
+  // TODO: Change so that challenge is not sent via payloaded interest
   interest.setApplicationParameters(buff);
   m_keyChain.sign(interest, signingByKey(state->m_key.getName())); 
   }
