@@ -11,6 +11,7 @@
 #include <ndn-cxx/lp/tags.hpp>
 
 #include <boost/lexical_cast.hpp>
+#include <boost/exception/diagnostic_information.hpp>
 
 std::string challengeType = "LOCATION";
 std::string identity = "mobterm3";
@@ -36,15 +37,24 @@ AutoDiscovery::AutoDiscovery()
 void
 AutoDiscovery::doStart()
 {
-  nfd::FaceQueryFilter filter;
-  filter.setLinkType(nfd::LINK_TYPE_MULTI_ACCESS);
+  m_controller.start<nfd::FaceUpdateCommand>(
+    nfd::ControlParameters()
+      .setFlagBit(nfd::FaceFlagBit::BIT_LOCAL_FIELDS_ENABLED, true),
+    [this] (const auto&...) {
+      nfd::FaceQueryFilter filter;
+      filter.setLinkType(nfd::LINK_TYPE_MULTI_ACCESS);
 
-  m_controller.fetch<nfd::FaceQueryDataset>(
-    filter,
-    bind(&AutoDiscovery::registerHubDiscoveryPrefix, this, _1),
-    [this] (uint32_t code, const std::string& reason) {
-      this->fail("Error " + to_string(code) + " when querying multi-access faces: " + reason);
+      m_controller.fetch<nfd::FaceQueryDataset>(
+        filter,
+        bind(&AutoDiscovery::registerHubDiscoveryPrefix, this, _1),
+        [this] (uint32_t code, const std::string& reason) {
+          this->fail("Error " + to_string(code) + " when querying multi-access faces: " + reason);
+        });
+    },
+    [this] (const auto&...) {
+      this->fail("Cannot set FaceFlags bit");
     });
+
   m_face.processEvents();
 }
 
@@ -80,7 +90,6 @@ AutoDiscovery::registerHubDiscoveryPrefix(const std::vector<nfd::FaceStatus>& da
         ++m_nRegFailure;
         afterReg();
       });
-
   }
 }
 
@@ -129,14 +138,13 @@ AutoDiscovery::requestHubData(size_t retriesLeft)
 
       const Block& content = data.getContent();
       content.parse();
-      std::cout << data.getSignature().getKeyLocator().getName() << std::endl;
       ndn::security::v2::Certificate cert(data.getContent().blockFromValue());
 
       std::cout << "\nTrust Anchor certificate retrieved...\n" << cert << std::endl;
 
-      if(ndn::security::verifySignature(data,cert)){
-        std::cout << "Device certificate verified by trust anchor!!!\n";
-      }
+      // if (ndn::security::verifySignature(data, cert)){
+      //   std::cout << "Device certificate verified by trust anchor!!!\n";
+      // }
 
       uint64_t faceId = 0;
       auto tag = data.getTag<lp::IncomingFaceIdTag>();
@@ -203,9 +211,16 @@ AutoDiscovery::RunNdncert(const Name& caPrefix, uint64_t faceId)
     [this, caPrefix] (const ControlParameters&) {
       std::cout << "\nGetting certificate from CA for " << caPrefix << "/" << identity << "\n";
 
-      NdnCertClientShLib cl;
-      this->retval = cl.RunNdnCertClient(caPrefix.toUri(), identity, challengeType);
-      // how to actually set value of issued cert name?
+      try {
+        NdnCertClientShLib cl;
+        this->retval = cl.RunNdnCertClient(caPrefix.toUri(), identity, challengeType);
+        // how to actually set value of issued cert name?
+      }
+      catch (const std::exception& error) {
+        std::cerr << boost::diagnostic_information(error) << std::endl;
+        this->retval = -1;
+        this->errorInfo = error.what();
+      }
     },
     [this] (const ControlResponse& resp) {
       std::cerr << "Error " << resp.getCode() << " when registering CA prefix. Cannot proceed";
