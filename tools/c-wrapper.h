@@ -6,7 +6,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-	typedef struct InvokeClient InvokeClient;
+	typedef class InvokeClient InvokeClient;
 
 	InvokeClient* newInvokeClient();
 

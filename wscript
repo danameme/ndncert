@@ -9,7 +9,7 @@ import os
 
 def options(opt):
     opt.load(['compiler_cxx', 'gnu_dirs'])
-    opt.load(['boost', 'default-compiler-flags', 'sqlite3',
+    opt.load(['boost', 'default-compiler-flags', 'sqlite3', 'cryptopp',
               'coverage', 'sanitizers',
               'doxygen', 'sphinx_build'],
              tooldir=['.waf-tools'])
@@ -20,7 +20,7 @@ def options(opt):
 
 def configure(conf):
     conf.load(['compiler_cxx', 'gnu_dirs',
-               'boost', 'default-compiler-flags', 'sqlite3',
+               'boost', 'default-compiler-flags', 'sqlite3', 'cryptopp',
                'doxygen', 'sphinx_build'])
 
     if 'PKG_CONFIG_PATH' not in os.environ:
@@ -28,6 +28,8 @@ def configure(conf):
     conf.check_cfg(package='libndn-cxx', args=['--cflags', '--libs'],
                    uselib_store='NDN_CXX', mandatory=True)
 
+    conf.check_cryptopp()
+    
     USED_BOOST_LIBS = ['system', 'filesystem', 'iostreams',
                        'program_options', 'thread', 'log', 'log_setup']
 
@@ -66,7 +68,7 @@ def build(bld):
         source =  bld.path.ant_glob(['src/**/*.cpp']),
         vnum = VERSION,
         cnum = VERSION,
-        use = 'NDN_CXX BOOST',
+        use = 'NDN_CXX BOOST CRYPTOPP',
         includes = ['src'],
         export_includes=['src'],
         install_path='${LIBDIR}'
@@ -109,8 +111,15 @@ def build(bld):
         VERSION      = VERSION,
         )
 
-    bld.shlib(source=[
-		"tools/ndncert-client.cpp",
-		"tools/c-wrapper.cpp"], 
-		target="ndncertclientshlib", includes=["tools"], cxxflags="-g -Wall -O0", 
-		use=["ndn-cert"])
+    bld.shlib(
+        source=[
+            "tools/ndncert-client.cpp",
+            "tools/c-wrapper.cpp"], 
+		target="ndncertclientshlib",
+        includes=["tools"],
+		use=["ndn-cert"],
+        vnum = VERSION,
+        cnum = VERSION,
+        )
+
+    bld.recurse('apps')

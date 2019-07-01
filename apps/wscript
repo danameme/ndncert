@@ -1,0 +1,11 @@
+# -*- Mode: python; py-indent-offset: 4; indent-tabs-mode: nil; coding: utf-8; -*-
+
+top = '..'
+
+def build(bld):
+
+    for app in ['icear-ca', 'icear-en', 'icear-mt']:
+        bld(features='cxxprogram cxx',
+            target='../bin/%s' % app,
+            source=bld.path.ant_glob(['%s/*.cpp' % app]),
+            use='ndncertclientshlib')
