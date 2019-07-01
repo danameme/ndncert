@@ -1,45 +1,19 @@
 /* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
-/*
- * Copyright (c) 2014-2017,  Regents of the University of California,
- *                           Arizona Board of Regents,
- *                           Colorado State University,
- *                           University Pierre & Marie Curie, Sorbonne University,
- *                           Washington University in St. Louis,
- *                           Beijing Institute of Technology,
- *                           The University of Memphis.
- *
- * This file is part of NFD (Named Data Networking Forwarding Daemon).
- * See AUTHORS.md for complete list of NFD authors and contributors.
- *
- * NFD is free software: you can redistribute it and/or modify it under the terms
- * of the GNU General Public License as published by the Free Software Foundation,
- * either version 3 of the License, or (at your option) any later version.
- *
- * NFD is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
- * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
- * PURPOSE.  See the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * NFD, e.g., in COPYING.md file.  If not, see <http://www.gnu.org/licenses/>.
- */
 
 #include "mobile-terminal.hpp"
-#include <boost/lexical_cast.hpp>
-#include <ndn-cxx/encoding/tlv-nfd.hpp>
+
 #include "ndncert-client-shlib.hpp"
+
+#include <ndn-cxx/encoding/tlv-nfd.hpp>
 #include <ndn-cxx/security/key-chain.hpp>
 #include <ndn-cxx/security/signing-helpers.hpp>
 #include <ndn-cxx/security/verification-helpers.hpp>
+#include <ndn-cxx/lp/tags.hpp>
 
+#include <boost/lexical_cast.hpp>
 
-
-ndn::Face face;   
-ndn::Face face2;
-ndn::security::KeyChain keyChain;
-std::string caName;
 std::string challengeType = "LOCATION";
 std::string identity = "mobterm3";
-std::string dataNamespace = "/ndn/ucla/cs/app/mobterm1";
 
 namespace ndn {
 namespace autodiscovery {
@@ -49,24 +23,14 @@ using nfd::ControlResponse;
 
 static const Name HUB_DISCOVERY_PREFIX("/localhop/ndn-autoconf/CA");
 static const uint64_t HUB_DISCOVERY_ROUTE_COST(1);
-static const time::milliseconds HUB_DISCOVERY_ROUTE_EXPIRATION = time::seconds(30);
-static const time::milliseconds HUB_DISCOVERY_INTEREST_LIFETIME = time::seconds(4);
+static const time::milliseconds HUB_DISCOVERY_ROUTE_EXPIRATION = 60_s;
+static const time::milliseconds HUB_DISCOVERY_INTEREST_LIFETIME = 2_s;
 
-AutoDiscovery::AutoDiscovery(Face& face, nfd::Controller& controller)
-  : m_face(face)
-  , m_controller(controller)
+AutoDiscovery::AutoDiscovery()
+  : m_face(nullptr, m_keyChain)
+  , m_controller(m_face, m_keyChain)
+  , m_scheduler(m_face.getIoService())
 {
-}
-
-void
-AutoDiscovery::RunNdncert()
-{
-	std::cout << "\nGetting certificate from CA...\n";
-
-	NdnCertClientShLib cl;
-	std::cout << caName << "/" << identity << std::endl;
-        int result = cl.RunNdnCertClient(caName, identity, challengeType);
-        return;
 }
 
 void
@@ -81,6 +45,7 @@ AutoDiscovery::doStart()
     [this] (uint32_t code, const std::string& reason) {
       this->fail("Error " + to_string(code) + " when querying multi-access faces: " + reason);
     });
+  m_face.processEvents();
 }
 
 void
@@ -142,70 +107,20 @@ AutoDiscovery::setStrategy()
 
   m_controller.start<nfd::StrategyChoiceSetCommand>(
     parameters,
-    bind(&AutoDiscovery::requestHubData, this),
+    [this] (const auto&...) { requestHubData(3); },
     [this] (const ControlResponse& resp) {
       this->fail("Error " + to_string(resp.getCode()) + " when setting multicast strategy: " +
                  resp.getText());
     });
 }
 
-
 void
-AutoDiscovery::startListener(){
-
-    std::cout << "Starting Listener for... " << dataNamespace << std::endl;
-
-    face2.setInterestFilter(dataNamespace,
-                             bind(&AutoDiscovery::onInterest, this, _1, _2),
-                             RegisterPrefixSuccessCallback(),
-                             bind(&AutoDiscovery::onRegisterFailed, this, _1, _2));
-    face2.processEvents();
-
-}
-
-
-void
-AutoDiscovery::onInterest(const InterestFilter& filter, const Interest& interest)
-{
-    
-    std::cout << "<< Received interest: " << interest << std::endl;
-
-    // Create data name based on Interest's name
-    Name dataName(interest.getName());
-    dataName
-      .appendVersion();  // add "version" component (current UNIX timestamp in milliseconds)
-
-    std::string content = "DummyDataxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx";
-
-    // Create Data packet
-    shared_ptr<Data> data = make_shared<Data>();
-    data->setName(dataName);
-    data->setFreshnessPeriod(10_s); // 10 seconds
-    data->setContent(reinterpret_cast<const uint8_t*>(content.data()), content.size());
-
-    // Sign Data packet with certificate received from CA
-    keyChain.sign(*data, ndn::security::signingByIdentity(Name(caName +"/"+identity)));
-
-    // Return Data packet to the requester
-    std::cout << ">> D: " << *data << std::endl;
-    face2.put(*data);
-}
-
-void
-AutoDiscovery::onRegisterFailed(const Name& prefix, const std::string& reason)
-{
-    std::cerr << "ERROR: Failed to register prefix \""
-              << prefix << "\" in local hub's daemon (" << reason << ")"
-              << std::endl;
-    m_face.shutdown();
-}
-
-void
-AutoDiscovery::requestHubData()
+AutoDiscovery::requestHubData(size_t retriesLeft)
 {
   Interest interest(HUB_DISCOVERY_PREFIX);
   interest.setInterestLifetime(HUB_DISCOVERY_INTEREST_LIFETIME);
   interest.setMustBeFresh(true);
+  interest.setCanBePrefix(true);
 
   std::cout << "Sending interest via multicast... " << interest << std::endl;
 
@@ -223,52 +138,80 @@ AutoDiscovery::requestHubData()
         std::cout << "Device certificate verified by trust anchor!!!\n";
       }
 
-      // Get CA namespace from Keylocator
-      KeyLocator keyLocator = cert.getSignature().getKeyLocator();
-      std::string tempName = keyLocator.getName().toUri();
-      caName = tempName.substr(0,tempName.find("KEY")-1);
+      uint64_t faceId = 0;
+      auto tag = data.getTag<lp::IncomingFaceIdTag>();
+      if (tag != nullptr) {
+        faceId = tag->get();
+      }
+      else {
+        std::cerr << "Incoming data missing IncomingFaceIdTag" << std::endl;
+      }
 
-      //Get certificate to be used for signing data
-      RunNdncert();
+      std::cout << "Got data from FaceId " << faceId << std::endl;
 
-      //Start listening for interests and respond with dummy data
-      startListener();
-      
+      // Get CA namespace
+      Name caName = cert.getName().getPrefix(-4);
+
+      // Get certificate to be used for signing data
+      RunNdncert(caName, faceId);
+
+      std::cerr << "END OF NDNCERT" << std::endl;
     },
-    [this] (const Interest&, const lp::Nack& nack) {
-      this->fail("Nack-" + boost::lexical_cast<std::string>(nack.getReason()) + " when retrieving hub Data");
+    [this, retriesLeft] (const Interest&, const lp::Nack& nack) {
+      std::cerr << "Got NACK: " << nack.getReason() << std::endl;
+      if (retriesLeft > 0) {
+        std::cerr << "   Retrying in 1 second..." << std::endl;
+
+        m_scheduler.schedule(1_s, [=] {
+            requestHubData(retriesLeft - 1);
+          });
+      }
     },
-    [this] (const Interest&) {
-      this->fail("Timeout when retrieving hub Data");
+    [this, retriesLeft] (const Interest&) {
+      std::cerr << "Request timed out" << std::endl;
+      if (retriesLeft > 0) {
+        std::cerr << "   Retrying..." << std::endl;
+        requestHubData(retriesLeft - 1);
+      }
     });
-
 }
 
 void
 AutoDiscovery::fail(const std::string& msg)
 {
   std::cerr << "Multicast discovery failed: " << msg << std::endl;
-  this->onFailure(msg);
 }
 
 void
 AutoDiscovery::succeed(const FaceUri& hubFaceUri)
 {
   std::cerr << "Multicast discovery succeeded with " << hubFaceUri << std::endl;
-  this->onSuccess(hubFaceUri);
 }
 
 void
-AutoDiscovery::provideHubFaceUri(const std::string& s)
+AutoDiscovery::RunNdncert(const Name& caPrefix, uint64_t faceId)
 {
+  // register CA prefix
+  ControlParameters parameters;
+  parameters.setName(caPrefix)
+    .setFaceId(faceId)
+    .setCost(HUB_DISCOVERY_ROUTE_COST)
+    .setExpirationPeriod(HUB_DISCOVERY_ROUTE_EXPIRATION);
 
-  FaceUri u;
-  if (u.parse(s)) {
-    this->succeed(u);
-  }
-  else {
-    this->fail("Cannot parse FaceUri: " + s);
-  }
+  m_controller.start<nfd::RibRegisterCommand>(
+    parameters,
+    [this, caPrefix] (const ControlParameters&) {
+      std::cout << "\nGetting certificate from CA for " << caPrefix << "/" << identity << "\n";
+
+      NdnCertClientShLib cl;
+      this->retval = cl.RunNdnCertClient(caPrefix.toUri(), identity, challengeType);
+      // how to actually set value of issued cert name?
+    },
+    [this] (const ControlResponse& resp) {
+      std::cerr << "Error " << resp.getCode() << " when registering CA prefix. Cannot proceed";
+      this->retval = -1;
+      this->errorInfo = "Error when registering CA prefix. Cannot proceed";
+    });
 }
 
 } // namespace autodiscovery
@@ -277,18 +220,17 @@ AutoDiscovery::provideHubFaceUri(const std::string& s)
 
 int
 main(int argc, char** argv)
-{  
-        
-        if(argc < 2){
-		std::cout << "Usage: ./mobile-terminal <identity>\n";
-		return 0;
-	}
-        identity = argv[1];
-	ndn::nfd::Controller controller(face, keyChain);
-	ndn::autodiscovery::AutoDiscovery autodisc(face, controller);
-	autodisc.doStart();
-	face.processEvents();
+{
 
-	return 0;
+  if(argc < 2) {
+    std::cout << "Usage: ./" << argv[0] << " <identity>\n";
+    return 0;
+  }
+  identity = argv[1];
+
+  ndn::autodiscovery::AutoDiscovery autodisc;
+  autodisc.doStart();
+
+  return autodisc.retval;
 
 }
