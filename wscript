@@ -111,8 +111,15 @@ def build(bld):
         VERSION      = VERSION,
         )
 
-    bld.shlib(source=[
-		"tools/ndncert-client.cpp",
-		"tools/c-wrapper.cpp"], 
-		target="ndncertclientshlib", includes=["tools"], cxxflags="-g -Wall -O0", 
-		use=["ndn-cert"])
+    bld.shlib(
+        source=[
+            "tools/ndncert-client.cpp",
+            "tools/c-wrapper.cpp"], 
+		target="ndncertclientshlib",
+        includes=["tools"],
+		use=["ndn-cert"],
+        vnum = VERSION,
+        cnum = VERSION,
+        )
+
+    bld.recurse('apps')
