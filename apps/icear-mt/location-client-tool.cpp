@@ -6,8 +6,11 @@
 #include <iostream>
 #include <string>
 
+#include <ndn-cxx/security/transform.hpp>
 #include <ndn-cxx/security/verification-helpers.hpp>
 #include <ndn-cxx/util/io.hpp>
+
+#include <boost/exception/diagnostic_information.hpp>
 
 namespace ndn {
 namespace ndncert {
@@ -15,29 +18,39 @@ namespace ndncert {
 LocationClientTool::LocationClientTool(Face& face, KeyChain& keyChain, const Name& caPrefix, const Certificate& caCert)
   : client(face, keyChain)
 {
+  namespace t = ndn::security::transform;
   std::ostringstream os;
-  ndn::io::save(caCert, os);
+  t::bufferSource(caCert.wireEncode().wire(), caCert.wireEncode().size())
+    >> t::base64Encode()
+    >> t::stripSpace("\n")
+    >> t::streamSink(os);
 
   std::string dummyConfig = R"STR(
     {
       "ca-list":
       [
         {
-            "ca-prefix": )STR" + caPrefix.toUri() + R"STR(/CA,
+            "ca-prefix": ")STR" + caPrefix.toUri() + R"STR(/CA",
             "ca-info": "",
             "probe": "will do probing",
             "certificate": ")STR" + os.str() +  R"STR("
         }
       ],
-      "local-ndncert-anchor": "not-used"
+      "local-ndncert-anchor": ")STR" + os.str() +  R"STR("
     }
   )STR";
 
   std::cerr << "Generated config: " << dummyConfig << std::endl;
   std::istringstream input(dummyConfig);
   JsonSection config;
-  boost::property_tree::read_info(input, config);
-  client.getClientConf().load(config);
+  try {
+    boost::property_tree::read_json(input, config);
+    client.getClientConf().load(config);
+  }
+  catch (const std::exception& error) {
+    std::cerr << boost::diagnostic_information(error) << std::endl;
+    throw;
+  }
 }
 
 void
@@ -60,7 +73,8 @@ LocationClientTool::errorCb(const std::string& errorInfo)
 void
 LocationClientTool::newCb(const shared_ptr<RequestState>& state)
 {
-  state->challenge = ChallengeModule::createChallengeModule("LOCATION_CHALLENGE");
+  state->challenge = ChallengeModule::createChallengeModule(LOCATION_CHALLENGE);
+  BOOST_ASSERT(state->challenge != nullptr);
 
   client.sendSelect(state, LOCATION_CHALLENGE, state->challenge->genSelectParamsJson(state->m_status, {}),
                     [this] (const shared_ptr<RequestState>& state) {

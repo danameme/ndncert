@@ -21,7 +21,7 @@ using nfd::ControlResponse;
 
 static const Name HUB_DISCOVERY_PREFIX("/localhop/ndn-autoconf/CA");
 static const uint64_t HUB_DISCOVERY_ROUTE_COST(1);
-static const time::milliseconds HUB_DISCOVERY_ROUTE_EXPIRATION = 60_s;
+static const time::milliseconds HUB_DISCOVERY_ROUTE_EXPIRATION = 160_s;
 static const time::milliseconds HUB_DISCOVERY_INTEREST_LIFETIME = 2_s;
 
 AutoDiscovery::AutoDiscovery()
@@ -97,6 +97,7 @@ AutoDiscovery::afterReg()
     return; // continue waiting
   }
   if (m_nRegSuccess > 0) {
+    std::cerr << "Registered to " << m_nRegSuccess << " faces" << std::endl;
     this->setStrategy();
   }
   else {
@@ -211,8 +212,13 @@ AutoDiscovery::registerPrefixAndRunNdncert(const Name& caPrefix, uint64_t faceId
       std::cout << "\nGetting certificate from CA " << caPrefix << "\n";
 
       try {
+        const std::string letters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890";
         std::string randomUserIdentity;
-        std::generate_n(randomUserIdentity.begin(), 10, [] () -> char { return random::generateSecureWord32() % 255; });
+        std::generate_n(std::back_inserter(randomUserIdentity), 10,
+                        [&letters] () -> char {
+                          return letters[random::generateSecureWord32() % letters.size()];
+                        });
+        std::cerr << "GEN IDENTITY: '" << randomUserIdentity << "'" << std::endl;
 
         BOOST_ASSERT(m_ndncertTool != nullptr);
         m_ndncertTool->start(randomUserIdentity);

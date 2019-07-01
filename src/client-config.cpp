@@ -59,7 +59,7 @@ ClientConfig::load(const JsonSection& configSection)
   }
   else {
     // assume base64
-    std::istringstream ss(configSection.get<std::string>("certificate"));
+    std::istringstream ss(configSection.get<std::string>("local-ndncert-anchor"));
     m_localNdncertAnchor = *(io::load<security::v2::Certificate>(ss));
   }
 }

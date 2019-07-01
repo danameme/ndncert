@@ -49,6 +49,7 @@ ClientModule::requestCaTrustAnchor(const Name& caName, const DataCallback& trust
   interestName.append("CA").append("_DOWNLOAD").append("ANCHOR");
   Interest interest(interestName);
   interest.setMustBeFresh(true);
+  interest.setCanBePrefix(true);
 
   m_face.expressInterest(interest, trustAnchorCallback,
                          bind(&ClientModule::onNack, this, _1, _2, errorCallback),
@@ -62,6 +63,7 @@ ClientModule::requestLocalhostList(const LocalhostListCallback& listCallback,
 {
   Interest interest(Name("/localhost/CA/_LIST"));
   interest.setMustBeFresh(true);
+  interest.setCanBePrefix(true);
   DataCallback dataCb = bind(&ClientModule::handleLocalhostListResponse,
                              this, _1, _2, listCallback, errorCallback);
   m_face.expressInterest(interest, dataCb,
@@ -103,6 +105,7 @@ ClientModule::requestList(const ClientCaItem& ca, const std::string& additionalI
   }
   Interest interest(requestName);
   interest.setMustBeFresh(true);
+  interest.setCanBePrefix(true);
   DataCallback dataCb = bind(&ClientModule::handleListResponse,
                              this, _1, _2, ca, listCallback, errorCallback);
   m_face.expressInterest(interest, dataCb,
@@ -152,6 +155,7 @@ ClientModule::sendProbe(const ClientCaItem& ca, const std::string& probeInfo,
 {
   Interest interest(Name(ca.m_caName).append("_PROBE").append(probeInfo));
   interest.setMustBeFresh(true);
+  interest.setCanBePrefix(true);
   DataCallback dataCb = bind(&ClientModule::handleProbeResponse,
                              this, _1, _2, ca, requestCallback, errorCallback);
   m_face.expressInterest(interest, dataCb,
@@ -218,6 +222,7 @@ ClientModule::sendNew(const ClientCaItem& ca, const Name& identityName,
 
   // generate interest
   Interest interest(Name(ca.m_caName).append(Name("_NEW")).append(certRequest.wireEncode()));
+  interest.setCanBePrefix(false);
   m_keyChain.sign(interest, signingByKey(state->m_key.getName()));
 
   DataCallback dataCb = bind(&ClientModule::handleNewResponse,
@@ -281,6 +286,7 @@ ClientModule::sendSelect(const shared_ptr<RequestState>& state,
     .append(challengeType)
     .append(nameBlockFromJson(selectParams));
   Interest interest(interestName);
+  interest.setCanBePrefix(false);
   //auto identity = m_keyChain.getPib().getIdentity(Name("/mobterm"));
   //auto cert = identity.getDefaultKey().getDefaultCertificate();
   //interest.setApplicationParameters(cert.wireEncode());
@@ -307,7 +313,7 @@ ClientModule::handleSelectResponse(const Interest& request,
     errorCallback("Cannot verify data from " + state->m_ca.m_caName.toUri());
     return;
   }
-  
+
   std::string recovered;
   RSAES_OAEP_SHA_Decryptor d(mt_privKey);
   Block b = reply.getContent();
@@ -319,7 +325,7 @@ ClientModule::handleSelectResponse(const Interest& request,
         new StringSink(recovered)
     ) // PK_DecryptorFilter
   ); // StringSource
-  std::cout << "Decrypted: " << recovered << std::endl; 
+  std::cout << "Decrypted: " << recovered << std::endl;
   int number1 = stoi(recovered.substr(0,recovered.find("/")));
   int number2 = stoi(recovered.substr(recovered.find("/")+1));
   int result = number1/number2;
@@ -335,7 +341,7 @@ ClientModule::handleSelectResponse(const Interest& request,
              << state->m_status << " to " + json.get<std::string>(JSON_STATUS));
 */
   state->m_status = "no-code";
-  
+
   /*
   if (!checkStatus(*state, json, errorCallback)) {
     return;
@@ -356,7 +362,7 @@ ClientModule::startListener(){
                              bind(&ClientModule::onRegisterFailed, this, _1, _2));
   //m_face2.processEvents();
   //while(dataSentFlag == 0){
-     
+
   //}
 
 
@@ -365,7 +371,7 @@ ClientModule::startListener(){
 
 void
 ClientModule::onInterest(const InterestFilter& filter, const Interest& interest){
-    
+
   std::cout << "Got interest: " << interest.getName() << std::endl;
   auto identity = m_keyChain.getPib().getIdentity(Name("/mobterm"));
   auto cert = identity.getDefaultKey().getDefaultCertificate();
@@ -401,13 +407,14 @@ ClientModule::sendValidate(const shared_ptr<RequestState>& state,
   JsonSection requestIdJson;
   requestIdJson.put(JSON_REQUEST_ID, state->m_requestId);
   std::string challType = state->m_challengeType;
-  
+
   Name interestName(state->m_ca.m_caName);
   interestName.append("_VALIDATE")
     .append(nameBlockFromJson(requestIdJson))
     .append(state->m_challengeType)
     .append(nameBlockFromJson(validateParams));
   Interest interest(interestName);
+  interest.setCanBePrefix(false);
   if(challType == "LOCATION"){
     std::string cipher;
     RSAES_OAEP_SHA_Encryptor e(ca_pubKey);
@@ -418,9 +425,9 @@ ClientModule::sendValidate(const shared_ptr<RequestState>& state,
         ) // PK_EncryptorFilter
     ); // StringSource
   //Block cipherMat(reinterpret_cast<const uint8_t*>(cipher.data()), cipher.size());
-  
+
   interest.setApplicationParameters(reinterpret_cast<const uint8_t*>(cipher.data()), cipher.size());
-  m_keyChain.sign(interest, signingByKey(state->m_key.getName())); 
+  m_keyChain.sign(interest, signingByKey(state->m_key.getName()));
    //m_keyChain.sign(interest,signingByIdentity(Name("/mobterm")));
   }
   else{
@@ -448,7 +455,7 @@ ClientModule::handleValidateResponse(const Interest& request,
     errorCallback("Cannot verify data from " + state->m_ca.m_caName.toUri());
     return;
   }
-  //gotMessage = reply.getName()[-1].toUri(); 
+  //gotMessage = reply.getName()[-1].toUri();
   JsonSection json = getJsonFromData(reply);
   state->m_status = json.get<std::string>(JSON_STATUS);
 
@@ -473,6 +480,7 @@ ClientModule::requestStatus(const shared_ptr<RequestState>& state,
   Name interestName(state->m_ca.m_caName);
   interestName.append("_STATUS").append(nameBlockFromJson(requestIdJson));
   Interest interest(interestName);
+  interest.setCanBePrefix(false);
 
   m_keyChain.sign(interest, signingByKey(state->m_key.getName()));
 
@@ -534,6 +542,7 @@ ClientModule::requestDownload(const shared_ptr<RequestState>& state,
   interestName.append("_DOWNLOAD").append(nameBlockFromJson(requestIdJson));
   Interest interest(interestName);
   interest.setMustBeFresh(true);
+  interest.setCanBePrefix(true);
   //interest.setApplicationParameters(reinterpret_cast<const uint8_t*>(token.data()),token.size());
   DataCallback dataCb = bind(&ClientModule::handleDownloadResponse,
                              this, _1, _2, state, requestCallback, errorCallback);
@@ -560,6 +569,7 @@ ClientModule::sendChallResp(const shared_ptr<RequestState>& state,
   interestName.append("_CHALL_RESP").append(randomNum);
   Interest interest(interestName);
   interest.setMustBeFresh(true);
+  interest.setCanBePrefix(true);
 
   DataCallback dataCb = bind(&ClientModule::handleChallRespResponse,
                              this, _1, _2, state, requestCallback, errorCallback);
@@ -594,8 +604,8 @@ ClientModule::handleChallRespResponse(const Interest& request, const Data& reply
         } else {
                 std::cout << "Message verification failed" << std::endl;
         }
- 
- 
+
+
   std::cout << reply.getName().toUri() << std::endl;
   //exit(0);
 return;
@@ -633,7 +643,9 @@ ClientModule::onTimeout(const Interest& interest, int nRetriesLeft, const DataCa
                         const ErrorCallback& errorCallback)
 {
   if (nRetriesLeft > 0) {
-    m_face.expressInterest(interest, dataCallback,
+    Interest i2(interest);
+    i2.refreshNonce();
+    m_face.expressInterest(i2, dataCallback,
                            bind(&ClientModule::onNack, this, _1, _2, errorCallback),
                            bind(&ClientModule::onTimeout, this, _1, nRetriesLeft - 1,
                                 dataCallback, errorCallback));
