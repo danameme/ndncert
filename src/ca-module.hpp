@@ -24,40 +24,12 @@
 #include "ca-config.hpp"
 #include "ca-storage.hpp"
 #include "json-helper.hpp"
+#include <ndn-cxx/security/transform/base64-encode.hpp>
+#include <ndn-cxx/security/transform/buffer-source.hpp>
+#include <ndn-cxx/security/transform/public-key.hpp>
+#include <ndn-cxx/security/transform/private-key.hpp>
+#include <ndn-cxx/security/key-params.hpp>
 
-#include <cryptopp/rsa.h>
-#include <cryptopp/modes.h>
-#include <cryptopp/aes.h>
-#include <cryptopp/osrng.h>
-#include <cryptopp/filters.h>
-#include <string>
-#include <cryptopp/sha.h>
-#include <cryptopp/pssr.h>
-#include <cryptopp/files.h>
-
-
-using CryptoPP::RSAES_OAEP_SHA_Encryptor;
-using CryptoPP::RSAES_OAEP_SHA_Decryptor;
-using CryptoPP::SHA1;
-
-using CryptoPP::RSA;
-using CryptoPP::RSASS;
-using CryptoPP::InvertibleRSAFunction;
-using CryptoPP::PSS;
-using CryptoPP::SHA1;
-using CryptoPP::StringSink;
-using CryptoPP::StringSource;
-
-using CryptoPP::AutoSeededRandomPool;
-
-using CryptoPP::SecByteBlock;
-
-using CryptoPP::PK_EncryptorFilter;
-using CryptoPP::PK_DecryptorFilter;
-
-
-using CryptoPP::Exception;
-using CryptoPP::DecodingResult;
 using std::exception;
 
 namespace ndn {
@@ -181,14 +153,9 @@ PUBLIC_WITH_TESTS_ELSE_PRIVATE:
   CaConfig m_config;
   unique_ptr<CaStorage> m_storage;
   security::v2::KeyChain& m_keyChain;
-  
-  InvertibleRSAFunction parameters;
-  ndn::security::v2::Certificate m_mt_certificate;
-  
-  RSA::PublicKey m_pubKey;
-  RSA::PrivateKey m_privKey;
-  RSA::PublicKey mobilePub;
+  security::v2::Certificate myCert;
   std::string challSent;
+  ndn::security::transform::PublicKey mtPubKey;
   
   std::list<const RegisteredPrefixId*> m_registeredPrefixIds;
   std::list<const InterestFilterId*> m_interestFilterIds;

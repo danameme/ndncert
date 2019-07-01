@@ -209,10 +209,12 @@ public:
     }
 
     if (state->m_status == ChallengeModule::SUCCESS) {
-      std::cerr << "DONE! Certificate has already been issued \n";
+      std::cerr << "DONE! Certificate has already been issued SUCCESS \n";
+      
       client.requestDownload(state,
                              bind(&ClientTool::downloadCb, this, _1),
                              bind(&ClientTool::errorCb, this, _1));
+			     
       return;
     }
 
@@ -294,9 +296,11 @@ public:
       }
     }
     auto paramJson = challenge->genSelectParamsJson(state->m_status, paraList);
+    /* 
     client.sendKey(state,
                       bind(&ClientTool::pubKeyCb, this, _1),
                       bind(&ClientTool::errorCb, this, _1));
+    */
     client.sendSelect(state, choice, paramJson,
                       bind(&ClientTool::selectCb, this, _1),
                       bind(&ClientTool::errorCb, this, _1));

@@ -9,4 +9,4 @@ discoveryHub.o:		discoveryHub.cpp
 	g++ -std=c++14 -I $(NDNCERT_HEADERS) -c discoveryHub.cpp -o discoveryHub.o
 
 clean:
-	rm *.o
+	rm *.o discoveryHub

@@ -24,44 +24,13 @@
 #include "client-config.hpp"
 #include "certificate-request.hpp"
 
-
-
-#include <cryptopp/rsa.h>
-#include <cryptopp/modes.h>
-#include <cryptopp/aes.h>
-#include <cryptopp/osrng.h>
-#include <cryptopp/filters.h>
+#include <ndn-cxx/security/transform/base64-encode.hpp>
+#include <ndn-cxx/security/transform/buffer-source.hpp>
+#include <ndn-cxx/security/transform/public-key.hpp>
+#include <ndn-cxx/security/transform/private-key.hpp>
+#include <ndn-cxx/security/key-params.hpp>
 #include <string>
-#include <cryptopp/sha.h>
-#include <cryptopp/pssr.h>
-#include <cryptopp/files.h>
-
-using CryptoPP::RSAES_OAEP_SHA_Encryptor;
-using CryptoPP::RSAES_OAEP_SHA_Decryptor;
-using CryptoPP::SHA1;
-
-using CryptoPP::RSA;
-using CryptoPP::RSASS;
-using CryptoPP::InvertibleRSAFunction;
-using CryptoPP::PSS;
-using CryptoPP::SHA1;
-using CryptoPP::StringSink;
-using CryptoPP::StringSource;
-
-using CryptoPP::AutoSeededRandomPool;
-
-using CryptoPP::SecByteBlock;
-
-using CryptoPP::PK_EncryptorFilter;
-using CryptoPP::PK_DecryptorFilter;
-
-
-using CryptoPP::Exception;
-using CryptoPP::DecodingResult;
 using std::exception;
-
-
-
 
 using namespace ndn::security::v2;
 
@@ -211,34 +180,7 @@ public:
                          const shared_ptr<RequestState>& state,
                          const RequestCallback& requestCallback, const ErrorCallback& errorCallback);
    
-  void
-  sendKey(const shared_ptr<RequestState>& state, const RequestCallback& requestCallback,
-                  const ErrorCallback& errorCallback);
 
-  void
-  handleKeyResponse(const Interest& request, const Data& reply,
-                         const shared_ptr<RequestState>& state,
-                         const RequestCallback& requestCallback, const ErrorCallback& errorCallback);
-
-/*
-  void
-  sendChallResp(const shared_ptr<RequestState>& state, const RequestCallback& requestCallback,
-                  const ErrorCallback& errorCallback);
-
-
-  void
-  handleChallRespResponse(const Interest& request, const Data& reply,
-                         const shared_ptr<RequestState>& state,
-                         const RequestCallback& requestCallback, const ErrorCallback& errorCallback);
-  void
-  startListener();
-
-  void
-  onInterest(const InterestFilter& filter, const Interest& interest);
-
-  void
-  onRegisterFailed(const Name& prefix, const std::string& reason);
-*/
   // helper functions
   static JsonSection
   getJsonFromData(const Data& data);
@@ -263,12 +205,14 @@ protected:
   security::v2::KeyChain& m_keyChain;
   size_t m_retryTimes;
   ndn::security::v2::Certificate m_ca_certificate;
-  
+  /* 
   InvertibleRSAFunction parameters;
   AutoSeededRandomPool rng;
   RSA::PrivateKey mt_privKey;
   RSA::PublicKey ca_pubKey;
+  */
   std::string gotChall;
+  ndn::security::transform::PublicKey caPubKey;
   //std::string sentMessage;
   //std::string gotMessage;
   //int dataSentFlag;

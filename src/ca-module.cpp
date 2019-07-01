@@ -31,7 +31,7 @@
 #include <cstdlib>
 
 
-AutoSeededRandomPool CA_rng;
+//AutoSeededRandomPool CA_rng;
 
 namespace ndn {
 namespace ndncert {
@@ -118,10 +118,11 @@ CaModule::registerPrefix()
                                               bind(&CaModule::handleCert, this, _2, item));
         m_interestFilterIds.push_back(filterId);
 
-	
+	/*
 	filterId = m_face.setInterestFilter(Name(name).append("_KEY"),
 						bind(&CaModule::handleKey, this, _2, item));
 	m_interestFilterIds.push_back(filterId);
+	*/
 
         /*
 	filterId = m_face.setInterestFilter(Name(name).append("_CHALL_RESP"),
@@ -374,6 +375,9 @@ CaModule::handleNew(const Interest& request, const CaItem& caItem)
     return;
   }
 
+  auto pubMat = clientCert.getPublicKey();
+  mtPubKey.loadPkcs8(pubMat.data(),pubMat.size());
+
   std::string requestId = std::to_string(random::generateWord64());
   CertificateRequest certRequest(caItem.m_caName, requestId, clientCert);
   certRequest.setStatus(ChallengeModule::WAIT_SELECTION);
@@ -447,29 +451,37 @@ CaModule::handleSelect(const Interest& request, const CaItem& caItem)
   if(challengeType == "LOCATION"){
     //unsigned int time_ui = time(0);
     //srand(time(NULL));
-     srand((unsigned)std::time(0));  
-    int number1 = rand() % 999999999 + 100000;
-    int number2 = rand() % 10 + 100;
-    int finalChall = number1/number2;
-    std::string plain = to_string(number1) + "/" + to_string(number2);
-    // Store result for future comparison
-    challSent = to_string(finalChall);
-    std::cout << "SENT " << finalChall << std::endl;
-    
-    
-    std::string cipher;
-    //challSent = plain;
-    RSAES_OAEP_SHA_Encryptor e(mobilePub);
+    srand((unsigned)std::time(0));  
+    //int number1 = rand() % 999999999 + 100000;
+    //int number2 = rand() % 10 + 100;
 
+    int RN = rand() % 99999999 + 1;
+    std::string rand_enc = to_string(RN);
+
+    auto buff = mtPubKey.encrypt(reinterpret_cast<const uint8_t *>(rand_enc.data()), rand_enc.size());
+
+    //int finalChall = number1/number2;
+    //std::string plain = to_string(number1) + "/" + to_string(number2);
+    // Store result for future comparison
+    challSent = rand_enc;
+    //std::cout << "Sent challenge: " << rand_enc << std::endl;
+    
+    
+    //std::string cipher;
+    //challSent = plain;
+    //RSAES_OAEP_SHA_Encryptor e(mobilePub);
+	/*
     StringSource ss1(plain, true,
         new PK_EncryptorFilter(CA_rng, e,
                 new StringSink(cipher)
         ) // PK_EncryptorFilter
     ); // StringSource
+    */
     //exit(0);
     Data result;
     result.setName(request.getName());
-    result.setContent(reinterpret_cast<const uint8_t*>(cipher.data()), cipher.size());
+    result.setContent(buff);
+    //result.setContent(reinterpret_cast<const uint8_t*>(cipher.data()), cipher.size());
     m_keyChain.sign(result, signingByIdentity(caItem.m_caName));
     m_face.put(result);
     
@@ -546,23 +558,18 @@ CaModule::handleValidate(const Interest& request, const CaItem& caItem)
 
   std::string challengeType = certRequest.getChallengeType();
   if(challengeType == "LOCATION"){
-     std::string recovered;
      Block b = request.getApplicationParameters();
-     std::string cipher((char*)b.value(), b.value_size());
-
-     RSAES_OAEP_SHA_Decryptor d(m_privKey);
-     StringSource ss2(cipher, true,
-    	new PK_DecryptorFilter(CA_rng, d,
-        	new StringSink(recovered)
-   	) // PK_DecryptorFilter
-     ); // StringSource
-     std::cout << "Recovered " << recovered << std::endl;
+     
+     auto dec = m_keyChain.getTpm().decrypt(b.value(), b.value_size(), myCert.getKeyName());
+     std::string recovered(dec->begin(),dec->end());
+     //std::cout << "Recovered " << recovered << std::endl;
      if(recovered == challSent){
        std::cout << "Challenge passed!\n";
 
      }
      else{
 	std::cout << "Challenge failed\n";
+	return;
      }
   }
 
@@ -673,6 +680,7 @@ CaModule::handleDownload(const Interest& request, const CaItem& caItem)
         }
   }
   */
+  //std::cout << "GOT DOWNLOAD\n";
   int verificationResult = CaModule::verifyInterest(request);
   if (verificationResult == CaVerifyInterest::SUCCESS) {
   // DOWNLOAD Naming Convention: /CA-prefix/CA/_DOWNLOAD/{Request-ID JSON}
@@ -724,12 +732,14 @@ CaModule::handleDownload(const Interest& request, const CaItem& caItem)
     }
     catch (const std::exception& e) {
       _LOG_ERROR(e.what());
+      //std::cout << "error?\n";
       return;
     }
     result.setContent(signedCert.wireEncode());
   }
   m_keyChain.sign(result, signingByIdentity(caItem.m_caName));
   m_face.put(result);
+  //std::cout << "cert sent\n";
 }
 else {
   if (verificationResult == CaVerifyInterest::NO_CERT_FOUND) {
@@ -756,7 +766,7 @@ CaModule::handleCert(const Interest& request, const CaItem& caItem)
 
 	// Fetch static certificate based on keyName defined in ca-sqlite.cpp
         auto cert = m_storage->getDataCertificate(pre_name + post_name);
-	
+
 	Data result;
         result.setName(request.getName());
         result.setFreshnessPeriod(time::seconds(4));
@@ -766,8 +776,10 @@ CaModule::handleCert(const Interest& request, const CaItem& caItem)
         m_face.put(result);
   }
   else {
+	  //std::cout << "THIS???\n\n\n\n";
   	auto identity = m_keyChain.getPib().getIdentity(Name(caItem.m_caName));
   	auto cert = identity.getDefaultKey().getDefaultCertificate();
+	myCert = cert;
 
   	Data result;
   	result.setName(request.getName());
@@ -823,6 +835,8 @@ CaModule::handleChallResp(const Interest& request, const CaItem& caItem)
 }
 
 */
+
+/*
 void
 CaModule::handleKey(const Interest& request, const CaItem& caItem)
 {
@@ -861,7 +875,7 @@ CaModule::handleKey(const Interest& request, const CaItem& caItem)
   m_face.put(result);
 
 }
-
+*/
 
 
 
