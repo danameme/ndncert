@@ -9,11 +9,13 @@ namespace ndncert {
 class LocationClientTool
 {
 public:
-  LocationClientTool(Face& face, KeyChain& keyChain, const Name& caPrefix, const Certificate& caCert,
-                     const std::string& userIdentity);
+  LocationClientTool(Face& face, KeyChain& keyChain, const Name& caPrefix, const Certificate& caCert);
 
   void
-   errorCb(const std::string& errorInfo);
+  start(const std::string& userIdentity);
+
+  void
+  errorCb(const std::string& errorInfo);
 
   void
   newCb(const shared_ptr<RequestState>& state);

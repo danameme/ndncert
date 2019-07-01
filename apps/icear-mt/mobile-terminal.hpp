@@ -49,7 +49,7 @@ public:
   succeed(const FaceUri& hubFaceUri);
 
   void
-  RunNdncert(const Name& caPrefix, uint64_t faceId);
+  registerPrefixAndRunNdncert(const Name& caPrefix, uint64_t faceId);
 
 public:
   int retval = 0;

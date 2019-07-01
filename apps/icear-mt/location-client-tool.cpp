@@ -12,42 +12,44 @@
 namespace ndn {
 namespace ndncert {
 
-LocationClientTool::LocationClientTool(Face& face, KeyChain& keyChain, const Name& caPrefix,
-                                       const Certificate& caCert, const std::string& userIdentity)
+LocationClientTool::LocationClientTool(Face& face, KeyChain& keyChain, const Name& caPrefix, const Certificate& caCert)
   : client(face, keyChain)
 {
-    std::ostringstream os;
-    ndn::io::save(caCert, os);
+  std::ostringstream os;
+  ndn::io::save(caCert, os);
 
-    std::string dummyConfig = R"STR(
-      {
-        "ca-list":
-        [
-          {
-              "ca-prefix": )STR" + caPrefix.toUri() + R"STR(/CA,
-              "ca-info": "",
-              "probe": "will do probing",
-              "certificate": ")STR" + os.str() +  R"STR("
-          }
-        ],
-        "local-ndncert-anchor": "not-used"
-      }
-    )STR";
+  std::string dummyConfig = R"STR(
+    {
+      "ca-list":
+      [
+        {
+            "ca-prefix": )STR" + caPrefix.toUri() + R"STR(/CA,
+            "ca-info": "",
+            "probe": "will do probing",
+            "certificate": ")STR" + os.str() +  R"STR("
+        }
+      ],
+      "local-ndncert-anchor": "not-used"
+    }
+  )STR";
 
-    std::cerr << "Generated config: " << dummyConfig << std::endl;
-    std::istringstream input(dummyConfig);
-    JsonSection config;
-    boost::property_tree::read_info(input, config);
+  std::cerr << "Generated config: " << dummyConfig << std::endl;
+  std::istringstream input(dummyConfig);
+  JsonSection config;
+  boost::property_tree::read_info(input, config);
+  client.getClientConf().load(config);
+}
 
-    client.getClientConf().load(config);
+void
+LocationClientTool::start(const std::string& userIdentity)
+{
+  ClientCaItem targetCaItem(*(client.getClientConf().m_caItems.begin()));
 
-    ClientCaItem targetCaItem(*(client.getClientConf().m_caItems.begin()));
-
-    // Start with _PROBE
-    client.sendProbe(targetCaItem, userIdentity,
-                     bind(&LocationClientTool::newCb, this, _1),
-                     bind(&LocationClientTool::errorCb, this, _1));
-  }
+  // Start with _PROBE
+  client.sendProbe(targetCaItem, userIdentity,
+                   bind(&LocationClientTool::newCb, this, _1),
+                   bind(&LocationClientTool::errorCb, this, _1));
+}
 
 void
 LocationClientTool::errorCb(const std::string& errorInfo)

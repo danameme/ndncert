@@ -3,17 +3,15 @@
 #include "mobile-terminal.hpp"
 
 #include <ndn-cxx/encoding/tlv-nfd.hpp>
+#include <ndn-cxx/lp/tags.hpp>
 #include <ndn-cxx/security/key-chain.hpp>
 #include <ndn-cxx/security/signing-helpers.hpp>
 #include <ndn-cxx/security/verification-helpers.hpp>
-#include <ndn-cxx/lp/tags.hpp>
+#include <ndn-cxx/util/random.hpp>
 
 #include <iostream>
 #include <boost/lexical_cast.hpp>
 #include <boost/exception/diagnostic_information.hpp>
-
-std::string challengeType = "LOCATION";
-std::string identity = "mobterm3";
 
 namespace ndn {
 namespace autodiscovery {
@@ -159,8 +157,10 @@ AutoDiscovery::requestHubData(size_t retriesLeft)
       // Get CA namespace
       Name caName = cert.getName().getPrefix(-4);
 
+      m_ndncertTool = std::make_unique<ndncert::LocationClientTool>(m_face, m_keyChain, caName, cert);
+
       // Get certificate to be used for signing data
-      RunNdncert(caName, faceId);
+      registerPrefixAndRunNdncert(caName, faceId);
 
       std::cerr << "END OF NDNCERT" << std::endl;
     },
@@ -196,7 +196,7 @@ AutoDiscovery::succeed(const FaceUri& hubFaceUri)
 }
 
 void
-AutoDiscovery::RunNdncert(const Name& caPrefix, uint64_t faceId)
+AutoDiscovery::registerPrefixAndRunNdncert(const Name& caPrefix, uint64_t faceId)
 {
   // register CA prefix
   ControlParameters parameters;
@@ -208,12 +208,14 @@ AutoDiscovery::RunNdncert(const Name& caPrefix, uint64_t faceId)
   m_controller.start<nfd::RibRegisterCommand>(
     parameters,
     [this, caPrefix] (const ControlParameters&) {
-      std::cout << "\nGetting certificate from CA for " << caPrefix << "/" << identity << "\n";
+      std::cout << "\nGetting certificate from CA " << caPrefix << "\n";
 
       try {
-        // NdnCertClientShLib cl;
-        // this->retval = cl.RunNdnCertClient(caPrefix.toUri(), identity, challengeType);
-        // how to actually set value of issued cert name?
+        std::string randomUserIdentity;
+        std::generate_n(randomUserIdentity.begin(), 10, [] () -> char { return random::generateSecureWord32() % 255; });
+
+        BOOST_ASSERT(m_ndncertTool != nullptr);
+        m_ndncertTool->start(randomUserIdentity);
       }
       catch (const std::exception& error) {
         std::cerr << boost::diagnostic_information(error) << std::endl;
@@ -235,13 +237,6 @@ AutoDiscovery::RunNdncert(const Name& caPrefix, uint64_t faceId)
 int
 main(int argc, char** argv)
 {
-
-  if(argc < 2) {
-    std::cout << "Usage: ./" << argv[0] << " <identity>\n";
-    return 0;
-  }
-  identity = argv[1];
-
   ndn::autodiscovery::AutoDiscovery autodisc;
   autodisc.doStart();
 
