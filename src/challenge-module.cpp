@@ -138,19 +138,29 @@ ChallengeModule::getFactory()
 }
 
 std::string
-ChallengeModule::generateSecretCode()
+ChallengeModule::generateSecretCode(size_t length, bool onlyDigits)
 {
-  uint32_t securityCode = 0;
-  do {
-    securityCode = random::generateSecureWord32();
+  const std::string DIGITS = "0123456789";
+  const std::string ALPHABET = "abcdeifhijklmnopqrstuvwxyzABCDEIFHIJKLMNOPQRSTUVWXYZ0123456789";
+
+  std::ostringstream os;
+  while (length > 0) {
+    uint32_t securityCode = random::generateSecureWord32();
+    for (size_t i = 0; i < 4 & length > 0; i++) {
+      uint8_t randByte = securityCode & 0xFF;
+      securityCode >>= 8;
+
+      // using module is really wrong (the distribution is not uniform), but don't really care here...
+      if (onlyDigits) {
+        os << DIGITS[randByte % DIGITS.size()];
+      }
+      else {
+        os << ALPHABET[randByte % ALPHABET.size()];
+      }
+      --length;
+    }
   }
-  while (securityCode >= 4294000000);
-  securityCode /= 4294;
-  std::string result = std::to_string(securityCode);
-  while (result.length() < 6) {
-    result = "0" + result;
-  }
-  return result;
+  return os.str();
 }
 
 } // namespace ndncert

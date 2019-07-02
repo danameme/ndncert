@@ -109,8 +109,8 @@ LocationClientTool::selectCb(const shared_ptr<RequestState>& state)
 
   // !! the code will be sent in clear text !! (at least for now)
   client.sendValidate(state, state->challenge->genValidateParamsJson(state->m_status, {code1->second}),
-                      [] (const shared_ptr<RequestState>& state) {
-                        std::cerr << "Got callback from SELECT command" << std::endl;
+                      [this] (const shared_ptr<RequestState>& state) {
+                        validateCb(state);
                       },
                       // bind(&LocationClientTool::validateCb, this, _1),
                       bind(&LocationClientTool::errorCb, this, _1));
@@ -118,39 +118,22 @@ LocationClientTool::selectCb(const shared_ptr<RequestState>& state)
 }
 
 void
+LocationClientTool::validateCb(const shared_ptr<RequestState>& state)
+{
+  if (state->m_status == ChallengeModule::SUCCESS) {
+    std::cerr << "DONE! Certificate has already been issued \n";
+    client.requestDownload(state,
+                           bind(&LocationClientTool::downloadCb, this, _1),
+                           bind(&LocationClientTool::errorCb, this, _1));
+    return;
+  }
+}
+
+void
 LocationClientTool::downloadCb(const shared_ptr<RequestState>& state)
 {
   std::cerr << " DONE! Certificate has already been installed to local keychain\n";
   return;
-}
-
-void
-LocationClientTool::validateCb(const shared_ptr<RequestState>& state)
-{
-  // if (state->m_challengeType == "LOCATION") {
-  //   std::cerr << "DONE! Certificate has already been issued \n";
-
-  //   client.requestDownload(state,
-  //                          bind(&LocationClientTool::downloadCb, this, _1),
-  //                          bind(&LocationClientTool::errorCb, this, _1));
-  //   return;
-  // }
-
-  // if (state->m_status == ChallengeModule::SUCCESS) {
-  //   std::cerr << "DONE! Certificate has already been issued \n";
-  //   client.requestDownload(state,
-  //                          bind(&LocationClientTool::downloadCb, this, _1),
-  //                          bind(&LocationClientTool::errorCb, this, _1));
-  //   return;
-  // }
-
-  // auto challenge = ChallengeModule::createChallengeModule(state->m_challengeType);
-  // auto requirementList = challenge->getRequirementForValidate(state->m_status);
-
-  // auto paramJson = challenge->genValidateParamsJson(state->m_status, paraList);
-  // client.sendValidate(state, paramJson,
-  //                     bind(&LocationClientTool::validateCb, this, _1),
-  //                     bind(&LocationClientTool::errorCb, this, _1));
 }
 
 } // namespace ndncert

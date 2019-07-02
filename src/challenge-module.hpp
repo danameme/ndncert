@@ -170,7 +170,7 @@ PUBLIC_WITH_TESTS_ELSE_PROTECTED:
   genDownloadName(const Name& caName, const std::string& requestId);
 
   static std::string
-  generateSecretCode();
+  generateSecretCode(size_t length = 6, bool onlyDigits = true);
 
 public:
   const std::string CHALLENGE_TYPE;

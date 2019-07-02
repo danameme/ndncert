@@ -53,7 +53,8 @@ LocationChallenge::processSelectInterest(const Interest& interest, CertificateRe
   // interest format: /caName/CA/_SELECT/{"request-id":"id"}/LOCATION/<signature>
   request.setStatus(NEED_CODE);
   request.setChallengeType(CHALLENGE_TYPE);
-  std::string secretCode = generateSecretCode();
+  std::string secretCode = generateSecretCode(32, false);
+
   request.setChallengeSecrets(generateStoredSecrets(time::system_clock::now(), secretCode));
   _LOG_TRACE("Secret for request " << request.getRequestId() << " : " << secretCode);
 
