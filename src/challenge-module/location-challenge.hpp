@@ -72,6 +72,9 @@ PUBLIC_WITH_TESTS_ELSE_PRIVATE:
   generateStoredSecrets(const time::system_clock::TimePoint& tp,
                         const std::string& secretCode1, const std::string& secretCode2);
 
+public:
+  static const Name LOCALHOP_VALIDATION_PREFIX;
+
 PUBLIC_WITH_TESTS_ELSE_PRIVATE:
   static const std::string NEED_CODE;
   static const std::string WRONG_CODE;

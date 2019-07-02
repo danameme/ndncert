@@ -173,8 +173,6 @@ public:
   requestDownload(const shared_ptr<RequestState>& state,const RequestCallback& requestCallback,
                   const ErrorCallback& errorCallback);
 
-
-
   void
   handleDownloadResponse(const Interest& request, const Data& reply,
                          const shared_ptr<RequestState>& state,
@@ -190,7 +188,7 @@ public:
   static bool
   checkStatus(const RequestState& state, const JsonSection& json, const ErrorCallback& errorCallback);
 
-protected:
+public:
   virtual void
   onTimeout(const Interest& interest, int nRetriesLeft,
             const DataCallback& dataCallback, const ErrorCallback& errorCallback);

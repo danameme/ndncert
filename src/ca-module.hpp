@@ -68,6 +68,13 @@ public:
   bool
   setStatusUpdateCallback(const Name caName, const StatusUpdateCallback& onUpateCallback);
 
+public:
+  static JsonSection
+  jsonFromNameComponent(const Name& name, int pos);
+
+  static Block
+  dataContentFromJson(const JsonSection& jsonSection);
+
 PUBLIC_WITH_TESTS_ELSE_PRIVATE:
   void
   handleLocalhostList(const Interest& query);
@@ -101,12 +108,6 @@ PUBLIC_WITH_TESTS_ELSE_PRIVATE:
 
   security::v2::Certificate
   issueCertificate(const CertificateRequest& certRequest, const CaItem& caItem);
-
-  static JsonSection
-  jsonFromNameComponent(const Name& name, int pos);
-
-  static Block
-  dataContentFromJson(const JsonSection& jsonSection);
 
   void
   registerPrefix();

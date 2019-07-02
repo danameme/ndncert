@@ -20,12 +20,17 @@
 
 #include "location-challenge.hpp"
 #include "json-helper.hpp"
+#include "logging.hpp"
+#include "ca-module.hpp"
 
 #include <ndn-cxx/util/random.hpp>
 #include <ndn-cxx/security/transform.hpp>
+#include <ndn-cxx/security/signing-helpers.hpp>
 
 namespace ndn {
 namespace ndncert {
+
+_LOG_INIT(ndncert.LocationChallenge);
 
 NDNCERT_REGISTER_CHALLENGE(LocationChallenge, "LOCATION");
 
@@ -38,7 +43,8 @@ const std::string LocationChallenge::JSON_CODE_TP = "code-timepoint";
 const std::string LocationChallenge::JSON_PIN_CODE1 = "code1";
 const std::string LocationChallenge::JSON_PIN_CODE2 = "code2";
 
-const Name LOCALHOP_VALIDATION_PREFIX = "/localhop/CA/VALIDATE";
+const Name LocationChallenge::LOCALHOP_VALIDATION_PREFIX = "/localhop/CA/VALIDATE";
+const Name FAKE_NAME = "/localhop"; // must be 2 components shorter than the validation prefix (kind of hack)
 
 LocationChallenge::LocationChallenge()
   : ChallengeModule("LOCATION")
@@ -53,10 +59,17 @@ LocationChallenge::doRegisterChallengeActions(Face& face, KeyChain& keyChain, co
 
   m_localhopRegistration = m_face->setInterestFilter(LOCALHOP_VALIDATION_PREFIX,
                                                      [this, prevalidate] (const auto&, const Interest &interest) {
-                                                       auto request = prevalidate(interest, LOCALHOP_VALIDATION_PREFIX);
-                                                       if (!request.isEmpty()) {
-                                                         processLocalhopInterest(interest, request);
+                                                       auto request = prevalidate(interest, FAKE_NAME);
+                                                       if (request.isEmpty()) {
+                                                         return;
                                                        }
+                                                       auto content = processLocalhopInterest(interest, request);
+
+                                                       Data result;
+                                                       result.setName(interest.getName());
+                                                       result.setContent(CaModule::dataContentFromJson(content));
+                                                       m_keyChain->sign(result, signingByIdentity(request.getCaName()));
+                                                       m_face->put(result);
                                                      },
                                                      [] (const auto&...) {});
 }
@@ -121,22 +134,27 @@ LocationChallenge::processValidateInterest(const Interest& interest, Certificate
 JsonSection
 LocationChallenge::processLocalhopInterest(const Interest& interest, CertificateRequest& request)
 {
+  _LOG_DEBUG("processLocalhopInterest");
   // interest format: /localhop/CA/VALIDATE/{"request-id":"id"}/LOCATION/{"code":"code"}/<signature>
   JsonSection infoJson = getJsonFromNameComponent(interest.getName(), 5);
   std::string givenCode = infoJson.get<std::string>(JSON_PIN_CODE1);
 
   const auto parsedSecret = parseStoredSecrets(request.getChallengeSecrets());
+  _LOG_DEBUG("after secrets");
   if (time::system_clock::now() - std::get<0>(parsedSecret) >= m_secretLifetime) {
+    _LOG_DEBUG("code expired");
     // secret expires
     request.setStatus(FAILURE_TIMEOUT);
     request.setChallengeSecrets(JsonSection());
     return genFailureJson(request.getRequestId(), CHALLENGE_TYPE, FAILURE, FAILURE_TIMEOUT);
   }
   else if (givenCode == std::get<1>(parsedSecret)) { // secret code 1
+    _LOG_DEBUG("code matches");
     return genResponseChallengeJson(request.getRequestId(), CHALLENGE_TYPE, NEED_CODE, {},
                                     {{"code2", encryptAndBase64(request.getCert().getPublicKey(), std::get<2>(parsedSecret))}});
   }
   else {
+    _LOG_DEBUG("code doesn't match");
     return genResponseChallengeJson(request.getRequestId(), CHALLENGE_TYPE, WRONG_CODE);
   }
 
