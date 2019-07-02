@@ -24,26 +24,12 @@
 #include "ca-config.hpp"
 #include "ca-storage.hpp"
 #include "json-helper.hpp"
-#include <ndn-cxx/security/transform/base64-encode.hpp>
-#include <ndn-cxx/security/transform/buffer-source.hpp>
-#include <ndn-cxx/security/transform/public-key.hpp>
-#include <ndn-cxx/security/transform/private-key.hpp>
-#include <ndn-cxx/security/key-params.hpp>
-
-using std::exception;
 
 namespace ndn {
 namespace ndncert {
 
 class CaModule : noncopyable
 {
-public:
-  enum CaVerifyInterest {
-        SUCCESS = 10,
-        NO_CERT_FOUND = 20,
-        FAILURE = 30
-  };
-
 public:
   /**
    * @brief Error that can be thrown from CaModule
@@ -107,15 +93,6 @@ PUBLIC_WITH_TESTS_ELSE_PRIVATE:
   handleDownload(const Interest& request, const CaItem& caItem);
 
   void
-  handleCert(const Interest& request, const CaItem& caItem);
-  
-  void
-  handleKey(const Interest& request, const CaItem& caItem);
-/*
-  void
-  handleChallResp(const Interest& request, const CaItem& caItem);
- */
-  void
   onRegisterFailed(const std::string& reason);
 
   CertificateRequest
@@ -127,36 +104,18 @@ PUBLIC_WITH_TESTS_ELSE_PRIVATE:
   static JsonSection
   jsonFromNameComponent(const Name& name, int pos);
 
-  CaVerifyInterest
-  verifyInterest(const Interest& request);
-
   static Block
   dataContentFromJson(const JsonSection& jsonSection);
 
   void
   registerPrefix();
-/*
-  void
-  startChallenge();
 
-  void
-  onDataChallenge(const Interest& interest, const Data& data);
-
-  void
-  onNackChallenge(const Interest& interest, const lp::Nack& nack);
-
-  void
-  onTimeoutChallenge(const Interest& interest); 
-*/
 PUBLIC_WITH_TESTS_ELSE_PRIVATE:
   Face& m_face;
   CaConfig m_config;
   unique_ptr<CaStorage> m_storage;
   security::v2::KeyChain& m_keyChain;
-  security::v2::Certificate myCert;
-  std::string challSent;
-  ndn::security::transform::PublicKey mtPubKey;
-  
+
   std::list<const RegisteredPrefixId*> m_registeredPrefixIds;
   std::list<const InterestFilterId*> m_interestFilterIds;
 };

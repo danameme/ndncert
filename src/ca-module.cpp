@@ -17,7 +17,7 @@
  *
  * See AUTHORS.md for complete list of ndncert authors and contributors.
  */
-#include <iostream>
+
 #include "ca-module.hpp"
 #include "challenge-module.hpp"
 #include "logging.hpp"
@@ -25,17 +25,10 @@
 #include <ndn-cxx/security/verification-helpers.hpp>
 #include <ndn-cxx/security/signing-helpers.hpp>
 #include <ndn-cxx/util/random.hpp>
-#include <unistd.h>
-#include <string>
-#include <ctime>
-#include <cstdlib>
-
-
-//AutoSeededRandomPool CA_rng;
 
 namespace ndn {
 namespace ndncert {
-Face m_chall_face;
+
 _LOG_INIT(ndncert.ca);
 
 CaModule::CaModule(Face& face, security::v2::KeyChain& keyChain,
@@ -71,13 +64,10 @@ CaModule::registerPrefix()
   m_registeredPrefixIds.push_back(prefixId);
   _LOG_TRACE("Prefix " << localProbePrefix << " got registered");
 
-  std::cout << "CA issuing certifcates for:" << std::endl;
-
   // register prefixes for each CA
   for (const auto& item : m_config.m_caItems) {
     Name prefix = item.m_caName;
     prefix.append("CA");
-    std::cout << prefix << std::endl;
 
     prefixId = m_face.registerPrefix(prefix,
       [&] (const Name& name) {
@@ -113,23 +103,6 @@ CaModule::registerPrefix()
                                               bind(&CaModule::handleList, this, _2, item));
           m_interestFilterIds.push_back(filterId);
         }
-	// CERT
-        filterId = m_face.setInterestFilter(Name(name).append("_CERT"),
-                                              bind(&CaModule::handleCert, this, _2, item));
-        m_interestFilterIds.push_back(filterId);
-
-	/*
-	filterId = m_face.setInterestFilter(Name(name).append("_KEY"),
-						bind(&CaModule::handleKey, this, _2, item));
-	m_interestFilterIds.push_back(filterId);
-	*/
-
-        /*
-	filterId = m_face.setInterestFilter(Name(name).append("_CHALL_RESP"),
-                                                bind(&CaModule::handleChallResp, this, _2, item));
-        m_interestFilterIds.push_back(filterId);
-	*/
-
         _LOG_TRACE("Prefix " << name << " got registered");
       },
       bind(&CaModule::onRegisterFailed, this, _2));
@@ -177,7 +150,7 @@ void
 CaModule::handleLocalhostList(const Interest& request)
 {
   _LOG_TRACE("Got Localhost LIST request");
-   std::cout << "handleLocalhostList called\n";
+
   JsonSection root;
   JsonSection caListSection;
 
@@ -230,6 +203,7 @@ void
 CaModule::handleList(const Interest& request, const CaItem& caItem)
 {
   _LOG_TRACE("Got LIST request");
+
   bool getRecommendation = false;
   Name recommendedCaName;
   std::string identityName;
@@ -292,25 +266,6 @@ CaModule::handleList(const Interest& request, const CaItem& caItem)
 void
 CaModule::handleProbe(const Interest& request, const CaItem& caItem)
 {
-	/*
-   // Fetch static certificate based on keyName defined in ca-sqlite.cpp
-   auto apCert = m_storage->getAPCert(request);
-   // Check if no certificate was returned
-   if (apCert.getKeyName().toUri() == "/") {
-	   std::cout << "Could not verify Interest, no certificate retrieved from DB\n";
-   }
-   else {
-   	// Check to see if signed interest is signed by the correct AP
-   	if (security::verifySignature(request, apCert)){
-        	std::cout << "Signed Interest VERIFIED Successfully!!\n";
-   	}
-   	else{
-        	std::cout << "FAILURE: Could Not Verify Signed Interest\n";
-   	}
-   }
-*/
-int verificationResult = CaModule::verifyInterest(request);
-if (verificationResult == CaVerifyInterest::SUCCESS) {
   // PROBE Naming Convention: /CA-prefix/CA/_PROBE/<Probe Information>
   _LOG_TRACE("Handle PROBE request");
 
@@ -338,45 +293,30 @@ if (verificationResult == CaVerifyInterest::SUCCESS) {
 
   _LOG_TRACE("Handle PROBE: generate identity " << identityName);
 }
-else {
-  if (verificationResult == CaVerifyInterest::NO_CERT_FOUND) {
-     std::cout << "Could not verify Interest, no certificate retrieved from DB" << std::endl;
-  }
-  else if (verificationResult == CaVerifyInterest::FAILURE) {
-     std::cout << "FAILURE: Could Not Verify Signed Interest" << std::endl;
-  }
-}
-
-}
 
 void
 CaModule::handleNew(const Interest& request, const CaItem& caItem)
 {
   // NEW Naming Convention: /CA-prefix/CA/_NEW/<certificate-request>/[signature]
   _LOG_TRACE("Handle NEW request");
+
   security::v2::Certificate clientCert;
   try {
     clientCert.wireDecode(request.getName().at(caItem.m_caName.size() + 2).blockFromValue());
   }
   catch (const std::exception& e) {
     _LOG_ERROR("Unrecognized certificate request " << e.what());
-    std::cout << "Unrecognized certificate request " << e.what() << std::endl;
     return;
   }
 
   if (!security::verifySignature(clientCert, clientCert)) {
     _LOG_TRACE("Cert request with bad signature.");
-    std::cout << "Cert request with bad signature." <<std::endl;
     return;
   }
   if (!security::verifySignature(request, clientCert)) {
     _LOG_TRACE("Interest with bad signature.");
-    std::cout << "Interest with bad signature." << std::endl;
     return;
   }
-
-  auto pubMat = clientCert.getPublicKey();
-  mtPubKey.loadPkcs8(pubMat.data(),pubMat.size());
 
   std::string requestId = std::to_string(random::generateWord64());
   CertificateRequest certRequest(caItem.m_caName, requestId, clientCert);
@@ -386,7 +326,6 @@ CaModule::handleNew(const Interest& request, const CaItem& caItem)
   }
   catch (const std::exception& e) {
     _LOG_TRACE("Cannot add new request instance " << e.what());
-    std::cout << "Cannot add new request instance " << e.what() << std::endl;
     return;
   }
 
@@ -407,8 +346,8 @@ CaModule::handleSelect(const Interest& request, const CaItem& caItem)
 {
   // SELECT Naming Convention: /CA-prefix/CA/_SELECT/{Request-ID JSON}/<ChallengeID>/
   // {Param JSON}/[Signature components]
-
   _LOG_TRACE("Handle SELECT request");
+
   CertificateRequest certRequest = getCertificateRequest(request, caItem.m_caName);
   if (certRequest.getRequestId().empty()) {
     return;
@@ -446,60 +385,16 @@ CaModule::handleSelect(const Interest& request, const CaItem& caItem)
       return;
     }
   }
-  // Generate a challenge
-  if(challengeType == "LOCATION"){
-    //unsigned int time_ui = time(0);
-    //srand(time(NULL));
-    srand((unsigned)std::time(0));
-    //int number1 = rand() % 999999999 + 100000;
-    //int number2 = rand() % 10 + 100;
 
-    int RN = rand() % 99999999 + 1;
-    std::string rand_enc = to_string(RN);
-
-    auto buff = mtPubKey.encrypt(reinterpret_cast<const uint8_t *>(rand_enc.data()), rand_enc.size());
-
-    //int finalChall = number1/number2;
-    //std::string plain = to_string(number1) + "/" + to_string(number2);
-    // Store result for future comparison
-    challSent = rand_enc;
-    //std::cout << "Sent challenge: " << rand_enc << std::endl;
-
-
-    //std::string cipher;
-    //challSent = plain;
-    //RSAES_OAEP_SHA_Encryptor e(mobilePub);
-	/*
-    StringSource ss1(plain, true,
-        new PK_EncryptorFilter(CA_rng, e,
-                new StringSink(cipher)
-        ) // PK_EncryptorFilter
-    ); // StringSource
-    */
-    //exit(0);
-    Data result;
-    result.setName(request.getName());
-    result.setContent(buff);
-    //result.setContent(reinterpret_cast<const uint8_t*>(cipher.data()), cipher.size());
-    m_keyChain.sign(result, signingByIdentity(caItem.m_caName));
-    m_face.put(result);
-
-  }
-
-  else{
   Data result;
   result.setName(request.getName());
   result.setContent(dataContentFromJson(contentJson));
   m_keyChain.sign(result, signingByIdentity(caItem.m_caName));
   m_face.put(result);
 
-
-  }
-
- if (caItem.m_statusUpdateCallback) {
+  if (caItem.m_statusUpdateCallback) {
     caItem.m_statusUpdateCallback(certRequest);
   }
-
 }
 
 void
@@ -508,34 +403,18 @@ CaModule::handleValidate(const Interest& request, const CaItem& caItem)
   // VALIDATE Naming Convention: /CA-prefix/CA/_VALIDATE/{Request-ID JSON}/<ChallengeID>/
   // {Param JSON}/[Signature components]
   _LOG_TRACE("Handle VALIDATE request");
+
   CertificateRequest certRequest = getCertificateRequest(request, caItem.m_caName);
   if (certRequest.getRequestId().empty()) {
     return;
   }
 
+  if (!security::verifySignature(request, certRequest.getCert())) {
+    _LOG_TRACE("Interest with bad signature.");
+    return;
+  }
+
   std::string challengeType = certRequest.getChallengeType();
-  if(challengeType == "LOCATION"){
-     Block b = request.getApplicationParameters();
-
-     auto dec = m_keyChain.getTpm().decrypt(b.value(), b.value_size(), myCert.getKeyName());
-     std::string recovered(dec->begin(),dec->end());
-     //std::cout << "Recovered " << recovered << std::endl;
-     if (recovered == challSent) {
-       std::cout << "Challenge passed!\n";
-
-     }
-     else {
-       std::cout << "Challenge failed\n";
-       return;
-     }
-  }
-
-  else{
-   if(!security::verifySignature(request, certRequest.getCert())){
-     _LOG_TRACE("Interest with bad signature");
-   }
-   std::cout << "Verification successful\n";
-  }
   auto challenge = ChallengeModule::createChallengeModule(challengeType);
   if (challenge == nullptr) {
     _LOG_TRACE("Unrecognized challenge type " << challengeType);
@@ -554,12 +433,8 @@ CaModule::handleValidate(const Interest& request, const CaItem& caItem)
       return;
     }
   }
-  //std::string message2 = to_string(rand()%99999999+10000000);
-  //sentMessage = message2;
   Data result;
-  Name dataName(request.getName());
-  //dataName.append(message2);
-  result.setName(dataName);
+  result.setName(request.getName());
   result.setContent(dataContentFromJson(contentJson));
   m_keyChain.sign(result, signingByIdentity(caItem.m_caName));
   m_face.put(result);
@@ -587,6 +462,7 @@ CaModule::handleStatus(const Interest& request, const CaItem& caItem)
 {
   // STATUS Naming Convention: /CA-prefix/CA/_STATUS/{Request-ID JSON}/[Signature components]
   _LOG_TRACE("Handle STATUS request");
+
   CertificateRequest certRequest = getCertificateRequest(request, caItem.m_caName);
   if (certRequest.getRequestId().empty()) {
     return;
@@ -615,31 +491,6 @@ CaModule::handleStatus(const Interest& request, const CaItem& caItem)
 void
 CaModule::handleDownload(const Interest& request, const CaItem& caItem)
 {
-	/*
-  if(request.hasApplicationParameters()){
-  	Block signedMessage = request.getApplicationParameters();
-  	std::string signedChall((char*)signedMessage.value(),signedMessage.value_size());
-  	SecByteBlock signature((const byte*)signedChall.data(),signedChall.size());
-
-  	RSASS<PSS, SHA1>::Verifier verifier( mobilePub );
-
-  	// Verify
-  	bool result = verifier.VerifyMessage( (const byte*)sentMessage.c_str(),
-  	sentMessage.length(), signature, signature.size() );
-
-  	// Result
-  	if( true == result ) {
-  		std::cout << "Signature on message verified" << std::endl;
-  	}
-  	else {
-        	std::cout << "Message verification failed" << std::endl;
-		return;
-        }
-  }
-  */
-  //std::cout << "GOT DOWNLOAD\n";
-  int verificationResult = CaModule::verifyInterest(request);
-  if (verificationResult == CaVerifyInterest::SUCCESS) {
   // DOWNLOAD Naming Convention: /CA-prefix/CA/_DOWNLOAD/{Request-ID JSON}
   _LOG_TRACE("Handle DOWNLOAD request");
 
@@ -689,152 +540,13 @@ CaModule::handleDownload(const Interest& request, const CaItem& caItem)
     }
     catch (const std::exception& e) {
       _LOG_ERROR(e.what());
-      //std::cout << "error?\n";
       return;
     }
     result.setContent(signedCert.wireEncode());
   }
   m_keyChain.sign(result, signingByIdentity(caItem.m_caName));
   m_face.put(result);
-  //std::cout << "cert sent\n";
 }
-else {
-  if (verificationResult == CaVerifyInterest::NO_CERT_FOUND) {
-     std::cout << "Could not verify Interest, no certificate retrieved from DB" << std::endl;
-  }
-  else if (verificationResult == CaVerifyInterest::FAILURE) {
-     std::cout << "FAILURE: Could Not Verify Signed Interest" << std::endl;
-  }
-}
-
-}
-
-
-void
-CaModule::handleCert(const Interest& request, const CaItem& caItem)
-{
-  // CERT Naming Convention: /CA-prefix/CA/_CERT
-  _LOG_TRACE("Handle CERT request");
-  std::string int_name = request.getName().toUri();
-
-  if (int_name.find("_DATACERT") != std::string::npos) {
-	std::string post_name = int_name.substr(int_name.find("_DATACERT") + 10);
-	std::string pre_name = int_name.substr(0, int_name.find("CA"));
-
-	// Fetch static certificate based on keyName defined in ca-sqlite.cpp
-        auto cert = m_storage->getDataCertificate(pre_name + post_name);
-
-	Data result;
-        result.setName(request.getName());
-        result.setFreshnessPeriod(time::seconds(4));
-        result.setContent(cert.wireEncode());
-        m_keyChain.sign(result, signingByIdentity(caItem.m_caName));
-
-        m_face.put(result);
-  }
-  else {
-	  //std::cout << "THIS???\n\n\n\n";
-  	auto identity = m_keyChain.getPib().getIdentity(Name(caItem.m_caName));
-  	auto cert = identity.getDefaultKey().getDefaultCertificate();
-	myCert = cert;
-
-  	Data result;
-  	result.setName(request.getName());
-  	result.setFreshnessPeriod(time::seconds(4));
-  	result.setContent(cert.wireEncode());
-  	m_keyChain.sign(result, signingByIdentity(caItem.m_caName));
-
-  	m_face.put(result);
-  }
-
-}
-
-/*
-void
-CaModule::handleChallResp(const Interest& request, const CaItem& caItem)
-{
-  std::string int_name = request.getName().toUri();
-  std::cout << int_name << std::endl;
-  // Since we know the length of the random number
-  std::string partOne = int_name.substr(int_name.find("_CHALL_RESP/")+12);
-  std::string message = partOne.substr(0, partOne.find("/"));
-  int ourSeed = stoi(message);
-  std::cout << message << std::endl;
-  RSASS<PSS, SHA1>::Signer signer( m_privKey );
-
-  // Create signature space
-  size_t length = signer.MaxSignatureLength();
-  std::cout << length <<std::endl;
-  SecByteBlock signature( length );
-
-        // Sign message
-  signer.SignMessage( rng, (const byte*) message.c_str(),
-  				message.length(), signature );
-
-  std::string token = std::string((char*)signature.data(),signature.size());
-
-  srand(ourSeed);
-  //std::string message2 = to_string(rand()%99999999+10000000);
-  //sentMessage = message2;
-  Data result;
-  Name dataName(request.getName());
-  //dataName.append(message2);
-  //result.setName(request.getName().append(message2));
-  result.setName(dataName);
-  std::cout << result.getName().toUri() << std::endl;
-  result.setFreshnessPeriod(time::seconds(4));
-  //Block signedMessage(reinterpret_cast<const uint8_t*>(token.data()), token.size());
-  //Block nothing;
-  result.setContent(reinterpret_cast<const uint8_t*>(token.data()), token.size());
-  m_keyChain.sign(result, signingByIdentity(caItem.m_caName));
-  m_face.put(result);
-
-}
-
-*/
-
-/*
-void
-CaModule::handleKey(const Interest& request, const CaItem& caItem)
-{
-  _LOG_TRACE("Handle PubKey request");
-
-
-  Block MTpub = request.getApplicationParameters();
-  std::string MTpubMaterial((char*)MTpub.value(), MTpub.value_size());
-
-
-  RSA::PublicKey MTPublicKey;
-  StringSource stringSource(MTpubMaterial,true);
-  MTPublicKey.BERDecode(stringSource);
-  mobilePub = MTPublicKey;
-
-
-
-  // Generate public/private RSA pair
-  parameters.GenerateRandomWithKeySize(CA_rng, 512);
-  RSA::PublicKey publicKey( parameters );
-  RSA::PrivateKey privateKey( parameters );
-  m_pubKey = publicKey;
-  m_privKey = privateKey;
-
-  // Convert public key to string so we can send it to MT
-  std::string pubKeyMaterial;
-  StringSink stringSink(pubKeyMaterial);
-  publicKey.DEREncode(stringSink);
-
-  Data result;
-  result.setName(request.getName());
-  result.setFreshnessPeriod(time::seconds(4));
-  Block pubKeyContent(reinterpret_cast<const uint8_t*>(pubKeyMaterial.data()), pubKeyMaterial.size());
-  result.setContent(pubKeyContent);
-  m_keyChain.sign(result, signingByIdentity(caItem.m_caName));
-  m_face.put(result);
-
-}
-*/
-
-
 
 security::v2::Certificate
 CaModule::issueCertificate(const CertificateRequest& certRequest, const CaItem& caItem)
@@ -902,29 +614,6 @@ CaModule::jsonFromNameComponent(const Name& name, int pos)
   JsonSection json;
   boost::property_tree::json_parser::read_json(ss, json);
   return json;
-}
-
-CaModule::CaVerifyInterest
-CaModule::verifyInterest(const Interest& request)
-{
-   return CaVerifyInterest::SUCCESS;
-   // Fetch static certificate based on keyName defined in ca-sqlite.cpp
-   auto apCert = m_storage->getAPCert(request);
-
-   // Check if no certificate was returned
-   if (apCert.getKeyName().toUri() == "/") {
-	   return CaVerifyInterest::NO_CERT_FOUND;
-   }
-   else {
-        // Check to see if signed interest is signed by the correct AP
-        if (security::verifySignature(request, apCert)){
-		return CaVerifyInterest::SUCCESS;
-        }
-        else{
-		return CaVerifyInterest::FAILURE;
-        }
-   }
-
 }
 
 } // namespace ndncert
