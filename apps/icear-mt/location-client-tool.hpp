@@ -32,6 +32,7 @@ public:
 private:
   const std::string LOCATION_CHALLENGE = "LOCATION";
   ClientModule client;
+  KeyChain& m_keyChain;
 };
 
 } // namespace ndncert

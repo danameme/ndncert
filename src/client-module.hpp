@@ -52,7 +52,7 @@ public:
   bool m_isInstalled = false;
 
   std::unique_ptr<ChallengeModule> challenge;
-  std::map<std::string, std::string> chalengeData;
+  std::map<std::string, std::string> challengeData;
 };
 
 // TODO

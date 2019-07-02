@@ -9,6 +9,7 @@
 #include <ndn-cxx/security/transform.hpp>
 #include <ndn-cxx/security/verification-helpers.hpp>
 #include <ndn-cxx/util/io.hpp>
+#include <ndn-cxx/encoding/buffer-stream.hpp>
 
 #include <boost/exception/diagnostic_information.hpp>
 
@@ -17,6 +18,7 @@ namespace ndncert {
 
 LocationClientTool::LocationClientTool(Face& face, KeyChain& keyChain, const Name& caPrefix, const Certificate& caCert)
   : client(face, keyChain)
+  , m_keyChain(keyChain)
 {
   namespace t = ndn::security::transform;
   std::ostringstream os;
@@ -86,7 +88,26 @@ LocationClientTool::newCb(const shared_ptr<RequestState>& state)
 void
 LocationClientTool::selectCb(const shared_ptr<RequestState>& state)
 {
-  client.sendValidate(state, state->challenge->genValidateParamsJson(state->m_status, {"000000"}),
+  namespace t = ndn::security::transform;
+
+  // decode what needs to be decoded
+  auto code1 = state->challengeData.find("code1");
+  if (code1 == state->challengeData.end()) {
+    std::cerr << "ERROR: the _SELECT/LOCATION response didn't include expected `code1` field" << std::endl;
+    return;
+  }
+
+  // decode base64
+  std::istringstream is(code1->second);
+  OBufferStream os;
+  t::streamSource(is) >> t::stripSpace("\n") >> t::base64Decode(false) >> t::streamSink(os);
+  // decrypt
+  auto codeBuffer = m_keyChain.getTpm().decrypt(os.buf()->data(), os.buf()->size(), state->m_key.getName());
+
+  // convert to string and store in the client state
+  code1->second = std::string(reinterpret_cast<const char*>(codeBuffer->data()), codeBuffer->size());
+
+  client.sendValidate(state, state->challenge->genValidateParamsJson(state->m_status, {code1->second}),
                       [] (const shared_ptr<RequestState>& state) {
                         std::cerr << "Got callback from SELECT command" << std::endl;
                       },

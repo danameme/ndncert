@@ -323,7 +323,7 @@ ClientModule::handleSelectResponse(const Interest& request,
   if (challengeData) {
     for (const auto& item : *challengeData) {
       // this may throw if there are unexpected items inside returned challenge-data
-      state->chalengeData[item.first] = item.second.get_value<std::string>();
+      state->challengeData[item.first] = item.second.get_value<std::string>();
     }
   }
 
