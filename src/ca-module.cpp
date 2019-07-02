@@ -19,8 +19,8 @@
  */
 
 #include "ca-module.hpp"
-#include "challenge-module.hpp"
 #include "logging.hpp"
+
 #include <ndn-cxx/util/io.hpp>
 #include <ndn-cxx/security/verification-helpers.hpp>
 #include <ndn-cxx/security/signing-helpers.hpp>
@@ -45,12 +45,6 @@ CaModule::CaModule(Face& face, security::v2::KeyChain& keyChain,
 
 CaModule::~CaModule()
 {
-  for (auto prefixId : m_interestFilterIds) {
-    m_face.unsetInterestFilter(prefixId);
-  }
-  for (auto prefixId : m_registeredPrefixIds) {
-    m_face.unregisterPrefix(prefixId, nullptr, nullptr);
-  }
 }
 
 void
@@ -107,6 +101,26 @@ CaModule::registerPrefix()
       },
       bind(&CaModule::onRegisterFailed, this, _2));
     m_registeredPrefixIds.push_back(prefixId);
+  }
+
+  for (const auto& name : ChallengeModule::getRegisteredChallenges()) {
+    auto challenge = ChallengeModule::createChallengeModule(name);
+    auto item = m_challenges.emplace(name, std::move(challenge));
+
+    item.first->second->registerChallengeActions(m_face, m_keyChain, [this, name] (const Interest& request, const Name& preParamsPrefix) {
+        _LOG_TRACE("Handle " << preParamsPrefix << " for challenge " << name);
+        CertificateRequest certRequest = getCertificateRequest(request, preParamsPrefix);
+        if (certRequest.getRequestId().empty()) {
+          return certRequest;
+        }
+
+        if (!security::verifySignature(request, certRequest.getCert())) {
+          _LOG_TRACE("Interest with bad signature.");
+          return CertificateRequest();
+        }
+
+        return certRequest;
+      });
   }
 }
 
@@ -367,12 +381,12 @@ CaModule::handleSelect(const Interest& request, const CaItem& caItem)
     return;
   }
   _LOG_TRACE("SELECT request choosing challenge " << challengeType);
-  auto challenge = ChallengeModule::createChallengeModule(challengeType);
-  if (challenge == nullptr) {
-    _LOG_TRACE("Unrecognized challenge type " << challengeType);
+  auto challenge = m_challenges.find(challengeType);
+  if (challenge == m_challenges.end()) {
+    _LOG_TRACE("Unrecognized or unsupported challenge type " << challengeType);
     return;
   }
-  JsonSection contentJson = challenge->handleChallengeRequest(request, certRequest);
+  JsonSection contentJson = challenge->second->handleChallengeRequest(request, certRequest);
   if (certRequest.getStatus() == ChallengeModule::FAILURE) {
     m_storage->deleteRequest(certRequest.getRequestId());
   }
@@ -415,12 +429,12 @@ CaModule::handleValidate(const Interest& request, const CaItem& caItem)
   }
 
   std::string challengeType = certRequest.getChallengeType();
-  auto challenge = ChallengeModule::createChallengeModule(challengeType);
-  if (challenge == nullptr) {
-    _LOG_TRACE("Unrecognized challenge type " << challengeType);
+  auto challenge = m_challenges.find(challengeType);
+  if (challenge == m_challenges.end()) {
+    _LOG_TRACE("Unrecognized or unsupported challenge type " << challengeType);
     return;
   }
-  JsonSection contentJson = challenge->handleChallengeRequest(request, certRequest);
+  JsonSection contentJson = challenge->second->handleChallengeRequest(request, certRequest);
   if (certRequest.getStatus() == ChallengeModule::FAILURE) {
     m_storage->deleteRequest(certRequest.getRequestId());
   }
@@ -474,12 +488,12 @@ CaModule::handleStatus(const Interest& request, const CaItem& caItem)
   }
 
   std::string challengeType = certRequest.getChallengeType();
-  auto challenge = ChallengeModule::createChallengeModule(challengeType);
-  if (challenge == nullptr) {
+  auto challenge = m_challenges.find(challengeType);
+  if (challenge == m_challenges.end()) {
     _LOG_TRACE("Unrecognized challenge type " << challengeType);
     return;
   }
-  JsonSection contentJson = challenge->handleChallengeRequest(request, certRequest);
+  JsonSection contentJson = challenge->second->handleChallengeRequest(request, certRequest);
 
   Data result;
   result.setName(request.getName());

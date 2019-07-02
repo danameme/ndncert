@@ -59,8 +59,11 @@ public:
     factory[typeName] = [] { return make_unique<ChallengeType>(); };
   }
 
+  static std::list<std::string>
+  getRegisteredChallenges();
+
   static unique_ptr<ChallengeModule>
-  createChallengeModule(const std::string& ChallengeType);
+  createChallengeModule(const std::string& challengeType);
 
   // For CA
   /**
@@ -138,6 +141,11 @@ public:
   JsonSection
   genValidateParamsJson(const std::string& status, const std::list<std::string>& paramList);
 
+  using PrevalidateCallback = std::function<CertificateRequest(const Interest& request, const Name& preParamsPrefix)>;
+
+  void
+  registerChallengeActions(Face& face, KeyChain& keyChain, const PrevalidateCallback& prevalidate);
+
 PUBLIC_WITH_TESTS_ELSE_PROTECTED:
   // For CA
   virtual JsonSection
@@ -161,6 +169,10 @@ PUBLIC_WITH_TESTS_ELSE_PROTECTED:
 
   virtual JsonSection
   doGenValidateParamsJson(const std::string& status, const std::list<std::string>& paramList) = 0;
+
+  // Unless overridden, does nothing
+  virtual void
+  doRegisterChallengeActions(Face& face, KeyChain& keyChain, const PrevalidateCallback& prevalidate);
 
   // Helpers
   static JsonSection

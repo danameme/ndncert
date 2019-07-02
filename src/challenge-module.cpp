@@ -20,7 +20,11 @@
 
 #include "challenge-module.hpp"
 #include "logging.hpp"
+
 #include <ndn-cxx/util/random.hpp>
+
+#include <boost/range/adaptor/map.hpp>
+#include <boost/range/algorithm/copy.hpp>
 
 namespace ndn {
 namespace ndncert {
@@ -93,6 +97,18 @@ ChallengeModule::genValidateParamsJson(const std::string& status,
   return doGenValidateParamsJson(status, paramList);
 }
 
+void
+ChallengeModule::registerChallengeActions(Face& face, KeyChain& keyChain, const PrevalidateCallback& prevalidate)
+{
+  return doRegisterChallengeActions(face, keyChain, prevalidate);
+}
+
+void
+ChallengeModule::doRegisterChallengeActions(Face& face, KeyChain& keyChain, const PrevalidateCallback& prevalidate)
+{
+  // do nothing by default
+}
+
 JsonSection
 ChallengeModule::processStatusInterest(const Interest& interest, const CertificateRequest& request)
 {
@@ -128,6 +144,14 @@ ChallengeModule::genDownloadName(const Name& caName, const std::string& requestI
   Name name = caName;
   name.append("_DOWNLOAD").append(jsonBlock);
   return name;
+}
+
+std::list<std::string>
+ChallengeModule::getRegisteredChallenges()
+{
+  std::list<std::string> retval;
+  boost::copy(getFactory() | boost::adaptors::map_keys, std::back_inserter(retval));
+  return retval;
 }
 
 ChallengeModule::ChallengeFactory&

@@ -23,6 +23,7 @@
 
 #include "ca-config.hpp"
 #include "ca-storage.hpp"
+#include "challenge-module.hpp"
 #include "json-helper.hpp"
 
 namespace ndn {
@@ -116,8 +117,9 @@ PUBLIC_WITH_TESTS_ELSE_PRIVATE:
   unique_ptr<CaStorage> m_storage;
   security::v2::KeyChain& m_keyChain;
 
-  std::list<const RegisteredPrefixId*> m_registeredPrefixIds;
-  std::list<const InterestFilterId*> m_interestFilterIds;
+  std::map<std::string, std::unique_ptr<ChallengeModule>> m_challenges;
+  std::list<ScopedRegisteredPrefixHandle> m_registeredPrefixIds;
+  std::list<ScopedInterestFilterHandle> m_interestFilterIds;
 };
 
 } // namespace ndncert

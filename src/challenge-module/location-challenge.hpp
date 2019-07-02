@@ -32,6 +32,14 @@ class LocationChallenge : public ChallengeModule
 public:
   LocationChallenge();
 
+  // Location challenge specifics
+  JsonSection
+  processLocalhopInterest(const Interest& interest, CertificateRequest& request);
+
+  JsonSection
+  genLocalhopParamsJson(const std::string& status, const std::list<std::string>& paramList);
+
+  // common challenge methods
 PUBLIC_WITH_TESTS_ELSE_PROTECTED:
   JsonSection
   processSelectInterest(const Interest& interest, CertificateRequest& request) override;
@@ -53,12 +61,16 @@ PUBLIC_WITH_TESTS_ELSE_PROTECTED:
   doGenValidateParamsJson(const std::string& status,
                           const std::list<std::string>& paramList) override;
 
+  void
+  doRegisterChallengeActions(Face& face, KeyChain& keyChain, const PrevalidateCallback& prevalidate) override;
+
 PUBLIC_WITH_TESTS_ELSE_PRIVATE:
-  static std::tuple<time::system_clock::TimePoint, std::string>
+  static std::tuple<time::system_clock::TimePoint, std::string, std::string>
   parseStoredSecrets(const JsonSection& storedSecret);
 
   static JsonSection
-  generateStoredSecrets(const time::system_clock::TimePoint& tp, const std::string& secretCode);
+  generateStoredSecrets(const time::system_clock::TimePoint& tp,
+                        const std::string& secretCode1, const std::string& secretCode2);
 
 PUBLIC_WITH_TESTS_ELSE_PRIVATE:
   static const std::string NEED_CODE;
@@ -67,9 +79,15 @@ PUBLIC_WITH_TESTS_ELSE_PRIVATE:
   static const std::string FAILURE_TIMEOUT;
 
   static const std::string JSON_CODE_TP;
-  static const std::string JSON_PIN_CODE;
+  static const std::string JSON_PIN_CODE1;
+  static const std::string JSON_PIN_CODE2;
 
   const time::seconds m_secretLifetime = 60_s;
+
+  // These make sense only for CA and must be initialized during doRegisterChallengeActions
+  Face* m_face = nullptr;
+  KeyChain* m_keyChain = nullptr;
+  ScopedInterestFilterHandle m_localhopRegistration;
 };
 
 } // namespace ndncert
