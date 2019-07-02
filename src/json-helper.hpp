@@ -34,6 +34,7 @@ const std::string JSON_CHALLENGES = "challenges";
 const std::string JSON_CHALLENGE_TYPE = "challenge-type";
 const std::string JSON_FAILURE_INFO = "failure-info";
 const std::string JSON_CERTIFICATE = "certificate";
+const std::string JSON_CHALLENGE_DATA = "challenge-data";
 
 /**
  * @brief Generate JSON file to response PROBE insterest

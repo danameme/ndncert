@@ -30,12 +30,11 @@
 #include <ndn-cxx/security/transform/private-key.hpp>
 #include <ndn-cxx/security/key-params.hpp>
 #include <string>
-using std::exception;
-
-using namespace ndn::security::v2;
 
 namespace ndn {
 namespace ndncert {
+
+using namespace ndn::security::v2;
 
 class ChallengeModule;
 
@@ -53,6 +52,7 @@ public:
   bool m_isInstalled = false;
 
   std::unique_ptr<ChallengeModule> challenge;
+  std::map<std::string, std::string> chalengeData;
 };
 
 // TODO
@@ -179,7 +179,6 @@ public:
   handleDownloadResponse(const Interest& request, const Data& reply,
                          const shared_ptr<RequestState>& state,
                          const RequestCallback& requestCallback, const ErrorCallback& errorCallback);
-   
 
   // helper functions
   static JsonSection

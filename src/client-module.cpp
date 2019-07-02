@@ -19,9 +19,10 @@
  */
 
 #include "client-module.hpp"
-#include "logging.hpp"
-#include "json-helper.hpp"
 #include "challenge-module.hpp"
+#include "json-helper.hpp"
+#include "logging.hpp"
+
 #include <ndn-cxx/util/io.hpp>
 #include <ndn-cxx/security/signing-helpers.hpp>
 #include <ndn-cxx/security/verification-helpers.hpp>
@@ -29,8 +30,8 @@
 
 namespace ndn {
 namespace ndncert {
-_LOG_INIT(ndncert.client);
 
+_LOG_INIT(ndncert.client);
 
 ClientModule::ClientModule(Face& face, security::v2::KeyChain& keyChain, size_t retryTimes)
   : m_face(face)
@@ -301,23 +302,40 @@ ClientModule::handleSelectResponse(const Interest& request,
                                    const RequestCallback& requestCallback,
                                    const ErrorCallback& errorCallback)
 {
+  // @TODO this will go to the client side for Location challenge processing
+
+  // auto decrypt = m_keyChain.getTpm().decrypt(b.value(),b.value_size(), state->m_key.getName());
+  // std::string challResult(decrypt->begin(), decrypt->end());
+
   if (!security::verifySignature(reply, state->m_ca.m_anchor)) {
     errorCallback("Cannot verify data from " + state->m_ca.m_caName.toUri());
     return;
   }
 
-  std::string recovered;
+  JsonSection json = getJsonFromData(reply);
 
-  Block b = reply.getContent();
-  auto decrypt = m_keyChain.getTpm().decrypt(b.value(),b.value_size(), state->m_key.getName());
-  std::string challResult(decrypt->begin(), decrypt->end());
-  gotChall = challResult; 
-  std::cout << "Got chall: " << challResult <<std::endl;
-  state->m_status = "no-code";
+  _LOG_TRACE("SELECT response would change the status from "
+             << state->m_status << " to " + json.get<std::string>(JSON_STATUS));
+
+  state->m_status = json.get<std::string>(JSON_STATUS);
+
+  auto challengeData = json.get_child_optional(JSON_CHALLENGE_DATA);
+  if (challengeData) {
+    for (const auto& item : *challengeData) {
+      // this may throw if there are unexpected items inside returned challenge-data
+      state->chalengeData[item.first] = item.second.get_value<std::string>();
+    }
+  }
+
+  if (!checkStatus(*state, json, errorCallback)) {
+    return;
+  }
 
   _LOG_TRACE("Got SELECT response with status " << state->m_status);
+
   requestCallback(state);
 }
+
 void
 ClientModule::sendValidate(const shared_ptr<RequestState>& state,
                            const JsonSection& validateParams,
@@ -336,16 +354,18 @@ ClientModule::sendValidate(const shared_ptr<RequestState>& state,
   Interest interest(interestName);
   interest.setCanBePrefix(false);
 
-  if (challType == "LOCATION") {
-    auto buff = caPubKey.encrypt(reinterpret_cast<const uint8_t *>(gotChall.data()), gotChall.size());
-
-    // TODO: Change so that challenge is not sent via payloaded interest
-    interest.setApplicationParameters(buff);
-    m_keyChain.sign(interest, signingByKey(state->m_key.getName()));
-  }
-  else{
   m_keyChain.sign(interest, signingByKey(state->m_key.getName()));
-  }
+
+  // @TODO this would go to LOCATION challenge parameters generation
+  // if (challType == "LOCATION") {
+  //   auto buff = caPubKey.encrypt(reinterpret_cast<const uint8_t *>(gotChall.data()), gotChall.size());
+
+  //   // TODO: Change so that challenge is not sent via payloaded interest
+  //   interest.setApplicationParameters(buff);
+  //   m_keyChain.sign(interest, signingByKey(state->m_key.getName()));
+  // }
+  // else{
+  // }
 
   DataCallback dataCb = bind(&ClientModule::handleValidateResponse,
                              this, _1, _2, state, requestCallback, errorCallback);
@@ -459,6 +479,7 @@ ClientModule::handleDownloadResponse(const Interest& request, const Data& reply,
                                      const shared_ptr<RequestState>& state,
                                      const RequestCallback& requestCallback,
                                      const ErrorCallback& errorCallback)
+{
   if (!security::verifySignature(reply, state->m_ca.m_anchor)) {
     errorCallback("Cannot verify data from " + state->m_ca.m_caName.toUri());
     return;
