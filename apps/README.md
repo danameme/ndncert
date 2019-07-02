@@ -1,30 +1,6 @@
 Application Documentation
 =========================
 
-There are 3 apps in the following directories used to test the security feature: icear-mt runs on the mobile terminal, icear-en runs on the edge node, and icear-ca runs on the CA (together with NDNCert).
-
-CA is assumed to be the Trust Anchor for this use-case
-
-The mobile terminal app in icear-mt performs the following actions:
-
-- Mobile terminal dicovers Trust Anchor
-- Mobile terminal requests certifcate from CA (NDNCert)
-- Mobile terminal verifies certificate received using Trust Anchor
-- Mobile terminal starts listening for interest packets. When it receives interest, it generates dummy data and signs it with its certificate.
-
-The edge node app in icear-en performs the following actions:
-
-- Edge node discovers Trust Anchor
-- Edge node sends interest to mobile terminal for data
-- When edge node received data packet, it fetches certificate used to sign data packet from CA
-- Edge node verifies the fetched certificate using the Trust Anchor
-- On successfull verification of cerificate, edge node verifies data packet with the fetched certicate of the data packet.
-
-The discovery hub app in icear-ca performs the following functions:
-
-- Discover app receives interest for /localhop/ndn-autoconf/CA and responds with the default identity of the Trust Anchor (in this use-case, same as CA)
-
-
 ## Setup
 
 Additional pre-requisites:
@@ -34,109 +10,50 @@ sudo apt-get install libcrypto++-dev libcrypto++-utils
 
 ndncert installation:
 
-```
-./waf configure
+    ./waf configure
+    ./waf
+    sudo ./waf install
+    # if Linux, will also need `sudo ldconfig`
 
-./waf
-sudo ./waf install
-sudo ldconfig
-```
-Ensure that libndncertclientshlib.so exists in the /usr/local/lib directory.
-
-On the device that will be running the CA server:
-```
-:~$ cd ndncert/apps/icear-ca
-:~$ sudo cp ca.conf /usr/local/etc/ndncert/ca.conf
-```
-We make a self-signed certificate that serves as the trust anchor:
-```
-ndnsec-keygen -i /ndn/ucla/compSci/15
-ndnsec-set-default -n /ndn/ucla/compSci/15
-```
-
-On the device that will be running the mobile terminal:
-```
-:~$ cd ndncert/apps/icear-mt
-:~$ sudo cp client.conf /usr/local/etc/ndncert/client.conf
-```
-We also assume that the MT has previously set up the faces/routes to the CA for getting certificates. Getting the Trust Anchor is done by multicast. The MT will also have a self signed certificate for challenge purposes. Our example:
-```
-ndnsec-keygen -i /mobterm
-nfdc face create udp://<CAaddress>
-nfdc route add /ndn/ucla/compSci/15 <CAfaceID>
-```
-
-We assume that all nodes are connected to a dummy access point and have IP addresses.
-
-We also assume the edge node has previously set up the faces/routes to the CA and mobile terminal:
-
-```
-nfdc face create udp://<CAaddress>
-nfdc face create udp://<MTaddress>
-nfdc route add /localhop/ndn-autoconf/CA <CAfaceID>
-nfdc route add /ndn/ucla/compSci/15 <CAfaceID>
-nfdc route add /ndn/ucla/cs/app/mobterm1 <MTfaceID>
-```
-
-Once the above steps have been completed, execute the Makefiles in the three directories located:
-
-```
-/ndncert/apps/icear-mt
-/ndncert/apps/icear-en
-/ndncert/apps/icear-ca
-```
+We assume that all nodes are connected to the same network reachable through multicast face(s), including ethernet multicast and IP/UDP multicast.
 
 ### Execution
 
 We will execute the programs on each device in the order of CA device, MT device, EN device.
 
-On CA device we will execute two programs:
-```
-ndncert-ca-server
-ndncert/apps/icear-ca/discoveryHub
-```
+On CA device, prepare configuration, generate self-signed key, and run two programs.
+
+Example of CA config (`ca.conf`):
+
+    {
+      "ca-list":
+      [
+        {
+            "ca-prefix": "/ndn/ice-ar/demo1",
+            "issuing-freshness": "720",
+            "validity-period": "360",
+            "ca-info": "Demo1 CA",
+            "probe": "yes",
+            "supported-challenges":
+            [
+                { "type": "LOCATION" }
+            ]
+        }
+      ]
+    }
+
+Creating keys for this CA in a dedicated folder `/foobar`
+
+    HOME=/foobar ndnsec-keygen -t rsa /ndn/ice-ar/demo1
+
+Run CAs daemons:
+
+    HOME=/foobar ndncert-ca-server -f ca.conf
+    HOME=/foobar icear-ca
 
 On MT device:
-```
-ndncert/apps/icear-mt/mobile-terminal
-```
 
-Once we see output from the mobile terminal that says it has started the listener, we can then execute the edge node program:
-```
-ndncert/apps/icear-en/edge-node
-```
+    icear-mt
 
-
-### Docker Execution Instructions
-
-Follow the following procedure to execute from a Docker image. Three containers, each for CA, MT and EN, will be run.
-
-On CA device, run the first docker container and execute the apps within the container:
-```
-sudo docker run -i -t amemedan/ndn:icearv2 bash
-nfd-start
-ndnsec-keygen -i /ndn/ucla/compSci/15
-ndncert-ca-server [this can be run in Linux screen session]
-discoveryHub [make and run from directory ndncert/apps/icear-ca/]
-```
-
-On MT device, run the second docker container and execute the apps within the container:
-```
-sudo docker run -i -t amemedan/ndn:icearv2 bash
-nfd-start
-nfdc face create udp://<CAaddress>
-nfdc route add /ndn/ucla/compSci/15 <CAfaceID>
-mobile-terminal [make and run from directory ndncert/apps/icear-mt/]
-```
-
-On EN device, run the first docker container and execute the apps within the container:
-```
-sudo docker run -i -t amemedan/ndn:icearv2 bash
-nfd-start
-nfdc face create udp://<CAaddress>
-nfdc face create udp://<MTaddress>
-nfdc route add /localhop/ndn-autoconf/CA <CAfaceID>
-nfdc route add /ndn/ucla/compSci/15 <CAfaceID>
-nfdc route add /ndn/ucla/cs/app/mobterm1 <MTfaceID>
-edge-node [make and run from directory ndncert/apps/icear-en/]
-```
+    # or to see debugging of NDN packet exchanges
+    # NDN_LOG=ndn.Face=ALL icear-mt
