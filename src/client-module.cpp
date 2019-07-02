@@ -356,17 +356,6 @@ ClientModule::sendValidate(const shared_ptr<RequestState>& state,
 
   m_keyChain.sign(interest, signingByKey(state->m_key.getName()));
 
-  // @TODO this would go to LOCATION challenge parameters generation
-  // if (challType == "LOCATION") {
-  //   auto buff = caPubKey.encrypt(reinterpret_cast<const uint8_t *>(gotChall.data()), gotChall.size());
-
-  //   // TODO: Change so that challenge is not sent via payloaded interest
-  //   interest.setApplicationParameters(buff);
-  //   m_keyChain.sign(interest, signingByKey(state->m_key.getName()));
-  // }
-  // else{
-  // }
-
   DataCallback dataCb = bind(&ClientModule::handleValidateResponse,
                              this, _1, _2, state, requestCallback, errorCallback);
   m_face.expressInterest(interest, dataCb,

@@ -73,28 +73,22 @@ genResponseNewJson(const std::string& requestId, const std::string& status,
 /**
  * @brief Generate JSON file to response _SELECT, _VALIDATE, and _STATUS interest
  *
- * if certificate name is not present:
- *
- * Target JSON format:
- * {
- *   "request-id": "@p requestId",
- *   "challenge-type": "@p challengeType",
- *   "status": "@p status"
- * }
- *
- * if certificate name is present:
- *
  * Target JSON format:
  * {
  *   "request-id": "@p requestId",
  *   "challenge-type": "@p challengeType",
  *   "status": "@p status",
- *   "certificate":"@p name"
+ *   "certificate":"@p name",
+ *   "challenge-data": [
+ *      "key": "value",
+ *      ...
+ *   ]
  * }
  */
 const JsonSection
 genResponseChallengeJson(const std::string& requestId, const std::string& challengeType,
-                         const std::string& status, const Name& name = Name());
+                         const std::string& status, const Name& name = {},
+                         const std::map<std::string, std::string>& challengeData = {});
 
 /**
  * @brief Generate JSON file when there is an Error

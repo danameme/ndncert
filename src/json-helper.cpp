@@ -56,14 +56,22 @@ genResponseNewJson(const std::string& requestId, const std::string& status,
 
 const JsonSection
 genResponseChallengeJson(const std::string& requestId, const std::string& challengeType,
-                         const std::string& status, const Name& name)
+                         const std::string& status, const Name& name,
+                         const std::map<std::string, std::string>& challengeData)
 {
   JsonSection root;
   root.put(JSON_REQUEST_ID, requestId);
   root.put(JSON_CHALLENGE_TYPE, challengeType);
   root.put(JSON_STATUS, status);
-  if (name.toUri() != "") {
+  if (!name.empty()) {
     root.put(JSON_CERTIFICATE, name.toUri());
+  }
+  if (!challengeData.empty()) {
+    JsonSection data;
+    for (const auto& item : challengeData) {
+      data.put(item.first, item.second);
+    }
+    root.put_child(JSON_CHALLENGE_DATA, data);
   }
   return root;
 }

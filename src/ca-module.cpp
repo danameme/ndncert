@@ -371,7 +371,7 @@ CaModule::handleNew(const Interest& request, const CaItem& caItem)
   }
   if (!security::verifySignature(request, clientCert)) {
     _LOG_TRACE("Interest with bad signature.");
-    std::cout << "Interest with bad signature." << std::endl; 
+    std::cout << "Interest with bad signature." << std::endl;
     return;
   }
 
@@ -407,7 +407,6 @@ CaModule::handleSelect(const Interest& request, const CaItem& caItem)
 {
   // SELECT Naming Convention: /CA-prefix/CA/_SELECT/{Request-ID JSON}/<ChallengeID>/
   // {Param JSON}/[Signature components]
-
 
   _LOG_TRACE("Handle SELECT request");
   CertificateRequest certRequest = getCertificateRequest(request, caItem.m_caName);
@@ -451,7 +450,7 @@ CaModule::handleSelect(const Interest& request, const CaItem& caItem)
   if(challengeType == "LOCATION"){
     //unsigned int time_ui = time(0);
     //srand(time(NULL));
-    srand((unsigned)std::time(0));  
+    srand((unsigned)std::time(0));
     //int number1 = rand() % 999999999 + 100000;
     //int number2 = rand() % 10 + 100;
 
@@ -465,8 +464,8 @@ CaModule::handleSelect(const Interest& request, const CaItem& caItem)
     // Store result for future comparison
     challSent = rand_enc;
     //std::cout << "Sent challenge: " << rand_enc << std::endl;
-    
-    
+
+
     //std::string cipher;
     //challSent = plain;
     //RSAES_OAEP_SHA_Encryptor e(mobilePub);
@@ -484,7 +483,7 @@ CaModule::handleSelect(const Interest& request, const CaItem& caItem)
     //result.setContent(reinterpret_cast<const uint8_t*>(cipher.data()), cipher.size());
     m_keyChain.sign(result, signingByIdentity(caItem.m_caName));
     m_face.put(result);
-    
+
   }
 
   else{
@@ -493,7 +492,7 @@ CaModule::handleSelect(const Interest& request, const CaItem& caItem)
   result.setContent(dataContentFromJson(contentJson));
   m_keyChain.sign(result, signingByIdentity(caItem.m_caName));
   m_face.put(result);
-  
+
 
   }
 
@@ -502,48 +501,6 @@ CaModule::handleSelect(const Interest& request, const CaItem& caItem)
   }
 
 }
-/*
-void
-CaModule::startChallenge(){
-  //usleep(1000000);
-  Interest interest(Name("/CHALL/_LOCATION/_CERT"));
-  interest.setInterestLifetime(2_s);
-  interest.setMustBeFresh(true);
-  m_chall_face.expressInterest(interest,
-                           bind(&CaModule::onDataChallenge, this,  _1, _2),
-                           bind(&CaModule::onNackChallenge, this, _1, _2),
-                           bind(&CaModule::onTimeoutChallenge, this, _1));
-  m_chall_face.processEvents();
-}
-
-void
-CaModule::onDataChallenge(const Interest& interest, const Data& data)
-{
-  try{
-  ndn::security::v2::Certificate cert(data.getContent().blockFromValue());
-  //m_mt_certificate = cert;
-  std::cout << "\n\nMT certificate retrieved...\n" << cert << std::endl;
-  }
-  catch(const tlv::Error& e){
-    std::cout << "Failed to extract certificate\n";
-  }
-  exit(0);
-}
-
-void
-CaModule::onNackChallenge(const Interest& interest, const lp::Nack& nack)
-{
-  std::cout << "\nNACK Retrieving Cert.... \n" << interest.getName() << std::endl;
-  return;
-}
-
-void
-CaModule::onTimeoutChallenge(const Interest& interest)
-{
-  std::cout << "\nTIMEOUT Retrieving Cert.... \n" << interest.getName() << std::endl;
-  return;
-}
-*/
 
 void
 CaModule::handleValidate(const Interest& request, const CaItem& caItem)
@@ -559,17 +516,17 @@ CaModule::handleValidate(const Interest& request, const CaItem& caItem)
   std::string challengeType = certRequest.getChallengeType();
   if(challengeType == "LOCATION"){
      Block b = request.getApplicationParameters();
-     
+
      auto dec = m_keyChain.getTpm().decrypt(b.value(), b.value_size(), myCert.getKeyName());
      std::string recovered(dec->begin(),dec->end());
      //std::cout << "Recovered " << recovered << std::endl;
-     if(recovered == challSent){
+     if (recovered == challSent) {
        std::cout << "Challenge passed!\n";
 
      }
-     else{
-	std::cout << "Challenge failed\n";
-	return;
+     else {
+       std::cout << "Challenge failed\n";
+       return;
      }
   }
 
@@ -627,7 +584,7 @@ CaModule::handleValidate(const Interest& request, const CaItem& caItem)
 
 void
 CaModule::handleStatus(const Interest& request, const CaItem& caItem)
-{  
+{
   // STATUS Naming Convention: /CA-prefix/CA/_STATUS/{Request-ID JSON}/[Signature components]
   _LOG_TRACE("Handle STATUS request");
   CertificateRequest certRequest = getCertificateRequest(request, caItem.m_caName);
@@ -673,7 +630,7 @@ CaModule::handleDownload(const Interest& request, const CaItem& caItem)
   	// Result
   	if( true == result ) {
   		std::cout << "Signature on message verified" << std::endl;
-  	} 
+  	}
   	else {
         	std::cout << "Message verification failed" << std::endl;
 		return;
@@ -685,7 +642,7 @@ CaModule::handleDownload(const Interest& request, const CaItem& caItem)
   if (verificationResult == CaVerifyInterest::SUCCESS) {
   // DOWNLOAD Naming Convention: /CA-prefix/CA/_DOWNLOAD/{Request-ID JSON}
   _LOG_TRACE("Handle DOWNLOAD request");
-  
+
   Data result;
   result.setName(request.getName());
   if (readString(request.getName().at(-1)) == "ANCHOR") {
@@ -786,7 +743,7 @@ CaModule::handleCert(const Interest& request, const CaItem& caItem)
   	result.setFreshnessPeriod(time::seconds(4));
   	result.setContent(cert.wireEncode());
   	m_keyChain.sign(result, signingByIdentity(caItem.m_caName));
- 
+
   	m_face.put(result);
   }
 
@@ -842,10 +799,10 @@ CaModule::handleKey(const Interest& request, const CaItem& caItem)
 {
   _LOG_TRACE("Handle PubKey request");
 
-  
+
   Block MTpub = request.getApplicationParameters();
   std::string MTpubMaterial((char*)MTpub.value(), MTpub.value_size());
-  
+
 
   RSA::PublicKey MTPublicKey;
   StringSource stringSource(MTpubMaterial,true);
@@ -869,7 +826,7 @@ CaModule::handleKey(const Interest& request, const CaItem& caItem)
   Data result;
   result.setName(request.getName());
   result.setFreshnessPeriod(time::seconds(4));
-  Block pubKeyContent(reinterpret_cast<const uint8_t*>(pubKeyMaterial.data()), pubKeyMaterial.size()); 
+  Block pubKeyContent(reinterpret_cast<const uint8_t*>(pubKeyMaterial.data()), pubKeyMaterial.size());
   result.setContent(pubKeyContent);
   m_keyChain.sign(result, signingByIdentity(caItem.m_caName));
   m_face.put(result);
@@ -949,7 +906,7 @@ CaModule::jsonFromNameComponent(const Name& name, int pos)
 
 CaModule::CaVerifyInterest
 CaModule::verifyInterest(const Interest& request)
-{  
+{
    return CaVerifyInterest::SUCCESS;
    // Fetch static certificate based on keyName defined in ca-sqlite.cpp
    auto apCert = m_storage->getAPCert(request);
@@ -967,9 +924,8 @@ CaModule::verifyInterest(const Interest& request)
 		return CaVerifyInterest::FAILURE;
         }
    }
-   
+
 }
 
 } // namespace ndncert
 } // namespace ndn
-

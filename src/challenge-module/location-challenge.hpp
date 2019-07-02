@@ -54,29 +54,22 @@ PUBLIC_WITH_TESTS_ELSE_PROTECTED:
                           const std::list<std::string>& paramList) override;
 
 PUBLIC_WITH_TESTS_ELSE_PRIVATE:
-  static std::tuple<time::system_clock::TimePoint, std::string, int>
+  static std::tuple<time::system_clock::TimePoint, std::string>
   parseStoredSecrets(const JsonSection& storedSecret);
 
   static JsonSection
-  generateStoredSecrets(const time::system_clock::TimePoint& tp, const std::string& secretCode,
-                        int attempTimes);
-
+  generateStoredSecrets(const time::system_clock::TimePoint& tp, const std::string& secretCode);
 
 PUBLIC_WITH_TESTS_ELSE_PRIVATE:
-  static const std::string NO_CODE;
+  static const std::string NEED_CODE;
   static const std::string WRONG_CODE;
 
   static const std::string FAILURE_TIMEOUT;
-  static const std::string FAILURE_MAXRETRY;
 
   static const std::string JSON_CODE_TP;
   static const std::string JSON_PIN_CODE;
-  static const std::string JSON_ATTEMPT_TIMES;
 
-private:
-
-  time::seconds m_secretLifetime;
-  int m_maxAttemptTimes;
+  const time::seconds m_secretLifetime = 60_s;
 };
 
 } // namespace ndncert

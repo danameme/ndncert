@@ -21,7 +21,9 @@
 #include "location-challenge.hpp"
 #include "logging.hpp"
 #include "json-helper.hpp"
+
 #include <ndn-cxx/util/random.hpp>
+#include <ndn-cxx/security/transform.hpp>
 
 namespace ndn {
 namespace ndncert {
@@ -30,15 +32,13 @@ _LOG_INIT(ndncert.location-challenge);
 
 NDNCERT_REGISTER_CHALLENGE(LocationChallenge, "LOCATION");
 
-const std::string LocationChallenge::NO_CODE = "no-code";
+const std::string LocationChallenge::NEED_CODE = "need-code";
 const std::string LocationChallenge::WRONG_CODE = "wrong-code";
 
 const std::string LocationChallenge::FAILURE_TIMEOUT = "failure-timeout";
-const std::string LocationChallenge::FAILURE_MAXRETRY = "failure-max-retry";
 
 const std::string LocationChallenge::JSON_CODE_TP = "code-timepoint";
 const std::string LocationChallenge::JSON_PIN_CODE = "code";
-const std::string LocationChallenge::JSON_ATTEMPT_TIMES = "attempt-times";
 
 LocationChallenge::LocationChallenge()
   : ChallengeModule("LOCATION")
@@ -48,25 +48,51 @@ LocationChallenge::LocationChallenge()
 JsonSection
 LocationChallenge::processSelectInterest(const Interest& interest, CertificateRequest& request)
 {
-  // interest format: /caName/CA/_SELECT/{"request-id":"id"}/PIN/<signature>
-  request.setStatus(NO_CODE);
+  namespace t = ndn::security::transform;
+
+  // interest format: /caName/CA/_SELECT/{"request-id":"id"}/LOCATION/<signature>
+  request.setStatus(NEED_CODE);
   request.setChallengeType(CHALLENGE_TYPE);
   std::string secretCode = generateSecretCode();
-  request.setChallengeSecrets(generateStoredSecrets(time::system_clock::now(),
-                                                    secretCode,
-                                                    m_maxAttemptTimes));
+  request.setChallengeSecrets(generateStoredSecrets(time::system_clock::now(), secretCode));
   _LOG_TRACE("Secret for request " << request.getRequestId() << " : " << secretCode);
-  return genResponseChallengeJson(request.getRequestId(), CHALLENGE_TYPE, NO_CODE);
+
+  // encrypt
+  t::PublicKey key;
+  key.loadPkcs8(request.getCert().getPublicKey().data(), request.getCert().getPublicKey().size());
+  auto block = key.encrypt(reinterpret_cast<const uint8_t*>(secretCode.data()), secretCode.size());
+
+  // base64 encode
+  std::ostringstream os;
+  t::bufferSource(block->data(), block->size()) >> t::base64Encode() >> t::stripSpace("\n") >> t::streamSink(os);
+
+  return genResponseChallengeJson(request.getRequestId(), CHALLENGE_TYPE, NEED_CODE, {},
+                                  {{"code1", os.str()}});
 }
 
 JsonSection
 LocationChallenge::processValidateInterest(const Interest& interest, CertificateRequest& request)
 {
-  //---Validate certificate without any challenge-reponse
-  request.setStatus(SUCCESS);
-  request.setChallengeSecrets(JsonSection());
-  Name downloadName = genDownloadName(request.getCaName(), request.getRequestId());
-  return genResponseChallengeJson(request.getRequestId(), CHALLENGE_TYPE, SUCCESS, downloadName);
+  // interest format: /caName/CA/_VALIDATION/{"request-id":"id"}/LOCATION/{"code":"code"}/<signature>
+  JsonSection infoJson = getJsonFromNameComponent(interest.getName(), request.getCaName().size() + 4);
+  std::string givenCode = infoJson.get<std::string>(JSON_PIN_CODE);
+
+  const auto parsedSecret = parseStoredSecrets(request.getChallengeSecrets());
+  if (time::system_clock::now() - std::get<0>(parsedSecret) >= m_secretLifetime) {
+    // secret expires
+    request.setStatus(FAILURE_TIMEOUT);
+    request.setChallengeSecrets(JsonSection());
+    return genFailureJson(request.getRequestId(), CHALLENGE_TYPE, FAILURE, FAILURE_TIMEOUT);
+  }
+  else if (givenCode == std::get<1>(parsedSecret)) {
+    request.setStatus(SUCCESS);
+    request.setChallengeSecrets(JsonSection());
+    Name downloadName = genDownloadName(request.getCaName(), request.getRequestId());
+    return genResponseChallengeJson(request.getRequestId(), CHALLENGE_TYPE, SUCCESS, downloadName);
+  }
+  else {
+    return genResponseChallengeJson(request.getRequestId(), CHALLENGE_TYPE, WRONG_CODE);
+  }
 }
 
 std::list<std::string>
@@ -79,14 +105,7 @@ LocationChallenge::getSelectRequirements()
 std::list<std::string>
 LocationChallenge::getValidateRequirements(const std::string& status)
 {
-  std::list<std::string> result;
-  if (status == NO_CODE) {
-    result.push_back("Verification code by-passed:");
-  }
-  else if (status == WRONG_CODE) {
-    result.push_back("Incorrect PIN code, please try again and input your verification code:");
-  }
-  return result;
+  return {};
 }
 
 JsonSection
@@ -109,24 +128,21 @@ LocationChallenge::doGenValidateParamsJson(const std::string& status,
   return result;
 }
 
-std::tuple<time::system_clock::TimePoint, std::string, int>
+std::tuple<time::system_clock::TimePoint, std::string>
 LocationChallenge::parseStoredSecrets(const JsonSection& storedSecrets)
 {
   auto tp = time::fromIsoString(storedSecrets.get<std::string>(JSON_CODE_TP));
-  std::string rightCode= storedSecrets.get<std::string>(JSON_PIN_CODE);
-  int attemptTimes = std::stoi(storedSecrets.get<std::string>(JSON_ATTEMPT_TIMES));
+  std::string rightCode = storedSecrets.get<std::string>(JSON_PIN_CODE);
 
-  return std::make_tuple(tp, rightCode, attemptTimes);
+  return std::make_tuple(tp, rightCode);
 }
 
 JsonSection
-LocationChallenge::generateStoredSecrets(const time::system_clock::TimePoint& tp,
-                                         const std::string& secretCode, int attempTimes)
+LocationChallenge::generateStoredSecrets(const time::system_clock::TimePoint& tp, const std::string& secretCode)
 {
   JsonSection json;
   json.put(JSON_CODE_TP, time::toIsoString(tp));
   json.put(JSON_PIN_CODE, secretCode);
-  json.put(JSON_ATTEMPT_TIMES, std::to_string(attempTimes));
   return json;
 }
 
