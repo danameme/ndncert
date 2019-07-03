@@ -170,7 +170,7 @@ ChallengeModule::generateSecretCode(size_t length, bool onlyDigits)
   std::ostringstream os;
   while (length > 0) {
     uint32_t securityCode = random::generateSecureWord32();
-    for (size_t i = 0; i < 4 & length > 0; i++) {
+    for (size_t i = 0; i < 4 && length > 0; i++) {
       uint8_t randByte = securityCode & 0xFF;
       securityCode >>= 8;
 
