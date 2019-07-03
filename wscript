@@ -9,7 +9,7 @@ import os
 
 def options(opt):
     opt.load(['compiler_cxx', 'gnu_dirs'])
-    opt.load(['boost', 'default-compiler-flags', 'sqlite3', 'cryptopp',
+    opt.load(['boost', 'default-compiler-flags', 'sqlite3',
               'coverage', 'sanitizers',
               'doxygen', 'sphinx_build'],
              tooldir=['.waf-tools'])
@@ -20,7 +20,7 @@ def options(opt):
 
 def configure(conf):
     conf.load(['compiler_cxx', 'gnu_dirs',
-               'boost', 'default-compiler-flags', 'sqlite3', 'cryptopp',
+               'boost', 'default-compiler-flags', 'sqlite3',
                'doxygen', 'sphinx_build'])
 
     if 'PKG_CONFIG_PATH' not in os.environ:
@@ -28,8 +28,6 @@ def configure(conf):
     conf.check_cfg(package='libndn-cxx', args=['--cflags', '--libs'],
                    uselib_store='NDN_CXX', mandatory=True)
 
-    conf.check_cryptopp()
-    
     USED_BOOST_LIBS = ['system', 'filesystem', 'iostreams',
                        'program_options', 'thread', 'log', 'log_setup']
 
@@ -68,7 +66,7 @@ def build(bld):
         source =  bld.path.ant_glob(['src/**/*.cpp']),
         vnum = VERSION,
         cnum = VERSION,
-        use = 'NDN_CXX BOOST CRYPTOPP',
+        use = 'NDN_CXX BOOST',
         includes = ['src'],
         export_includes=['src'],
         install_path='${LIBDIR}'

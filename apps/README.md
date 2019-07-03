@@ -3,11 +3,6 @@ Application Documentation
 
 ## Setup
 
-Additional pre-requisites:
-```
-sudo apt-get install libcrypto++-dev libcrypto++-utils
-```
-
 ndncert installation:
 
     ./waf configure
