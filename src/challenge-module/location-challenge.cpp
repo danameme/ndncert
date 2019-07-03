@@ -63,7 +63,7 @@ LocationChallenge::doRegisterChallengeActions(Face& face, KeyChain& keyChain, co
                                                        if (request.isEmpty()) {
                                                          return;
                                                        }
-                                                       auto content = processLocalhopInterest(interest, request);
+                                                       auto content = this->processLocalhopInterest(interest, request);
 
                                                        Data result;
                                                        result.setName(interest.getName());
