@@ -114,7 +114,7 @@ AutoDiscovery::setStrategy()
 
   m_controller.start<nfd::StrategyChoiceSetCommand>(
     parameters,
-    [this] (const auto&...) { requestHubData(3); },
+    [this] (const auto&...) { this->requestHubData(3); },
     [this] (const ControlResponse& resp) {
       this->fail("Error " + to_string(resp.getCode()) + " when setting multicast strategy: " +
                  resp.getText());

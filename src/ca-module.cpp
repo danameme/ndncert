@@ -58,6 +58,8 @@ CaModule::registerPrefix()
   m_registeredPrefixIds.push_back(prefixId);
   _LOG_TRACE("Prefix " << localProbePrefix << " got registered");
 
+  NDN_LOG_INFO("Prefix " << localProbePrefix << " got registered");
+
   // register prefixes for each CA
   for (const auto& item : m_config.m_caItems) {
     Name prefix = item.m_caName;
@@ -98,6 +100,8 @@ CaModule::registerPrefix()
           m_interestFilterIds.push_back(filterId);
         }
         _LOG_TRACE("Prefix " << name << " got registered");
+
+	NDN_LOG_INFO("Prefix " << name << " got registered");
       },
       bind(&CaModule::onRegisterFailed, this, _2));
     m_registeredPrefixIds.push_back(prefixId);
@@ -109,6 +113,7 @@ CaModule::registerPrefix()
 
     item.first->second->registerChallengeActions(m_face, m_keyChain, [this, name] (const Interest& request, const Name& preParamsPrefix) {
         _LOG_TRACE("Handle " << preParamsPrefix << " for challenge " << name);
+	
         CertificateRequest certRequest = getCertificateRequest(request, preParamsPrefix);
         if (certRequest.getRequestId().empty()) {
           return certRequest;
@@ -283,6 +288,8 @@ CaModule::handleProbe(const Interest& request, const CaItem& caItem)
   // PROBE Naming Convention: /CA-prefix/CA/_PROBE/<Probe Information>
   _LOG_TRACE("Handle PROBE request");
 
+  NDN_LOG_INFO("<< I: PROBE: request from MT");
+
   std::string identifier;
   if (caItem.m_probeHandler) {
     try {
@@ -306,6 +313,8 @@ CaModule::handleProbe(const Interest& request, const CaItem& caItem)
   m_face.put(result);
 
   _LOG_TRACE("Handle PROBE: generate identity " << identityName);
+
+  NDN_LOG_INFO(">> D: PROBE: CA generates identity " << identityName << " and trasmits");
 }
 
 void
@@ -313,6 +322,8 @@ CaModule::handleNew(const Interest& request, const CaItem& caItem)
 {
   // NEW Naming Convention: /CA-prefix/CA/_NEW/<certificate-request>/[signature]
   _LOG_TRACE("Handle NEW request");
+
+  NDN_LOG_INFO("<< I: NEW: certificate request from MT");
 
   security::v2::Certificate clientCert;
   try {
@@ -350,6 +361,8 @@ CaModule::handleNew(const Interest& request, const CaItem& caItem)
   m_keyChain.sign(result, signingByIdentity(caItem.m_caName));
   m_face.put(result);
 
+  NDN_LOG_INFO(">> D: NEW: CA generates session ID, challenge list and transmit to MT");
+
   if (caItem.m_statusUpdateCallback) {
     caItem.m_statusUpdateCallback(certRequest);
   }
@@ -381,6 +394,9 @@ CaModule::handleSelect(const Interest& request, const CaItem& caItem)
     return;
   }
   _LOG_TRACE("SELECT request choosing challenge " << challengeType);
+
+  NDN_LOG_INFO("<< I: SELECT: request, chooses challenge type " << challengeType);
+
   auto challenge = m_challenges.find(challengeType);
   if (challenge == m_challenges.end()) {
     _LOG_TRACE("Unrecognized or unsupported challenge type " << challengeType);
@@ -406,6 +422,8 @@ CaModule::handleSelect(const Interest& request, const CaItem& caItem)
   m_keyChain.sign(result, signingByIdentity(caItem.m_caName));
   m_face.put(result);
 
+  NDN_LOG_INFO(">> D: SELECT: CA initializes challenge type " << challengeType << ". Create RN and encrypt with MT public key");
+
   if (caItem.m_statusUpdateCallback) {
     caItem.m_statusUpdateCallback(certRequest);
   }
@@ -417,6 +435,8 @@ CaModule::handleValidate(const Interest& request, const CaItem& caItem)
   // VALIDATE Naming Convention: /CA-prefix/CA/_VALIDATE/{Request-ID JSON}/<ChallengeID>/
   // {Param JSON}/[Signature components]
   _LOG_TRACE("Handle VALIDATE request");
+
+  NDN_LOG_INFO("<< I: VALIDATE: request from MT containing RN to confirm if challenge is passed");
 
   CertificateRequest certRequest = getCertificateRequest(request, caItem.m_caName);
   if (certRequest.getRequestId().empty()) {
@@ -453,6 +473,8 @@ CaModule::handleValidate(const Interest& request, const CaItem& caItem)
   m_keyChain.sign(result, signingByIdentity(caItem.m_caName));
   m_face.put(result);
 
+  NDN_LOG_INFO(">> D: VALIDATE: CA sends validation response to MT");
+
   if (certRequest.getStatus() == ChallengeModule::SUCCESS) {
     auto issuedCert = issueCertificate(certRequest, caItem);
     if (caItem.m_statusUpdateCallback) {
@@ -463,6 +485,7 @@ CaModule::handleValidate(const Interest& request, const CaItem& caItem)
       m_storage->addCertificate(certRequest.getRequestId(), issuedCert);
       m_storage->deleteRequest(certRequest.getRequestId());
       _LOG_TRACE("New Certificate Issued " << issuedCert.getName());
+      NDN_LOG_INFO("New Certificate Issued " << issuedCert.getName());
     }
     catch (const std::exception& e) {
       _LOG_ERROR("Cannot add issued cert and remove the request " << e.what());
@@ -507,6 +530,8 @@ CaModule::handleDownload(const Interest& request, const CaItem& caItem)
 {
   // DOWNLOAD Naming Convention: /CA-prefix/CA/_DOWNLOAD/{Request-ID JSON}
   _LOG_TRACE("Handle DOWNLOAD request");
+
+  NDN_LOG_INFO("<< I: DOWNLOAD: request by MT for new certificate");
 
   Data result;
   result.setName(request.getName());
@@ -560,6 +585,8 @@ CaModule::handleDownload(const Interest& request, const CaItem& caItem)
   }
   m_keyChain.sign(result, signingByIdentity(caItem.m_caName));
   m_face.put(result);
+
+  NDN_LOG_INFO("New Certificate Downloaded Successfully by MT");
 }
 
 security::v2::Certificate
@@ -581,6 +608,7 @@ CaModule::issueCertificate(const CertificateRequest& certRequest, const CaItem& 
 
   m_keyChain.sign(newCert, signingInfo);
   _LOG_TRACE("new cert got signed" << newCert);
+  NDN_LOG_INFO("CA generates new certificate and signs " << newCert);
   return newCert;
 }
 
