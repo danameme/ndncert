@@ -100,7 +100,8 @@ LocationChallenge::processSelectInterest(const Interest& interest, CertificateRe
   std::string secretCode1 = generateSecretCode(32, false);
   std::string secretCode2 = generateSecretCode(32, false);
 
-  NDN_LOG_INFO("CA generates RN (encoded): " << secretCode1);
+  NDN_LOG_INFO("CA generates RN1 (encoded): " << secretCode1);
+  NDN_LOG_INFO("CA generates RN2 (encoded): " << secretCode2);
 
   request.setChallengeSecrets(generateStoredSecrets(time::system_clock::now(), secretCode1, secretCode2));
 
@@ -154,7 +155,7 @@ LocationChallenge::processLocalhopInterest(const Interest& interest, Certificate
   }
   else if (givenCode == std::get<1>(parsedSecret)) { // secret code 1
     _LOG_DEBUG("code matches");
-    NDN_LOG_INFO("Received code matches RN (encoded): " << givenCode);
+    NDN_LOG_INFO("Received code matches RN1 (encoded): " << givenCode);
     NDN_LOG_INFO("CA sends RN2 (encoded) for validation challenge: " << std::get<2>(parsedSecret));
     return genResponseChallengeJson(request.getRequestId(), CHALLENGE_TYPE, NEED_CODE, {},
                                     {{"code2", encryptAndBase64(request.getCert().getPublicKey(), std::get<2>(parsedSecret))}});

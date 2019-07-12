@@ -285,8 +285,6 @@ CaModule::handleProbe(const Interest& request, const CaItem& caItem)
 {
   // PROBE Naming Convention: /CA-prefix/CA/_PROBE/<Probe Information>
 
-  NDN_LOG_INFO("<< I: PROBE: request from MT");
-
   std::string identifier;
   if (caItem.m_probeHandler) {
     try {
@@ -300,6 +298,9 @@ CaModule::handleProbe(const Interest& request, const CaItem& caItem)
   else {
     identifier = readString(request.getName().at(caItem.m_caName.size() + 2));
   }
+
+  NDN_LOG_INFO("<< I: PROBE: request from MT with ID: " << identifier);
+
   Name identityName = caItem.m_caName;
   identityName.append(identifier);
 
@@ -416,7 +417,7 @@ CaModule::handleSelect(const Interest& request, const CaItem& caItem)
   m_keyChain.sign(result, signingByIdentity(caItem.m_caName));
   m_face.put(result);
 
-  NDN_LOG_INFO(">> D: SELECT: CA initializes challenge type " << challengeType);
+  NDN_LOG_INFO(">> D: SELECT: CA initializes challenge type " << challengeType << " using RN1");
 
   if (caItem.m_statusUpdateCallback) {
     caItem.m_statusUpdateCallback(certRequest);
@@ -477,7 +478,6 @@ CaModule::handleValidate(const Interest& request, const CaItem& caItem)
     try {
       m_storage->addCertificate(certRequest.getRequestId(), issuedCert);
       m_storage->deleteRequest(certRequest.getRequestId());
-      NDN_LOG_INFO("New Certificate Issued " << issuedCert.getName());
     }
     catch (const std::exception& e) {
       _LOG_ERROR("Cannot add issued cert and remove the request " << e.what());
@@ -577,7 +577,7 @@ CaModule::handleDownload(const Interest& request, const CaItem& caItem)
   m_keyChain.sign(result, signingByIdentity(caItem.m_caName));
   m_face.put(result);
 
-  NDN_LOG_INFO("New Certificate Downloaded Successfully by MT");
+  NDN_LOG_INFO("New certificate downloaded successfully by MT");
 }
 
 security::v2::Certificate
@@ -598,7 +598,7 @@ CaModule::issueCertificate(const CertificateRequest& certRequest, const CaItem& 
   newCert.setFreshnessPeriod(caItem.m_freshnessPeriod);
 
   m_keyChain.sign(newCert, signingInfo);
-  NDN_LOG_INFO("CA generates new certificate and signs " << newCert);
+  NDN_LOG_INFO("CA generates new certificate and signs. " << newCert);
   return newCert;
 }
 
