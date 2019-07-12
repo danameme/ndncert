@@ -124,6 +124,7 @@ LocationChallenge::processValidateInterest(const Interest& interest, Certificate
   }
   else if (givenCode == std::get<2>(parsedSecret)) { // secret code 2 (obtainable if /localhop validation succeeds)
     request.setStatus(SUCCESS);
+    NDN_LOG_INFO("Received code matches RN2 (encoded): " << givenCode);
     request.setChallengeSecrets(JsonSection());
     Name downloadName = genDownloadName(request.getCaName(), request.getRequestId());
     return genResponseChallengeJson(request.getRequestId(), CHALLENGE_TYPE, SUCCESS, downloadName);
@@ -144,7 +145,6 @@ LocationChallenge::processLocalhopInterest(const Interest& interest, Certificate
 
   const auto parsedSecret = parseStoredSecrets(request.getChallengeSecrets());
   _LOG_DEBUG("after secrets");
-  NDN_LOG_INFO("CHALLENGE: after secrets");
   if (time::system_clock::now() - std::get<0>(parsedSecret) >= m_secretLifetime) {
     _LOG_DEBUG("code expired");
     // secret expires
@@ -154,7 +154,8 @@ LocationChallenge::processLocalhopInterest(const Interest& interest, Certificate
   }
   else if (givenCode == std::get<1>(parsedSecret)) { // secret code 1
     _LOG_DEBUG("code matches");
-    NDN_LOG_INFO("CHALLENGE: received code matches RN (encoded): " << givenCode);
+    NDN_LOG_INFO("Received code matches RN (encoded): " << givenCode);
+    NDN_LOG_INFO("CA sends RN2 (encoded) for validation challenge: " << std::get<2>(parsedSecret));
     return genResponseChallengeJson(request.getRequestId(), CHALLENGE_TYPE, NEED_CODE, {},
                                     {{"code2", encryptAndBase64(request.getCert().getPublicKey(), std::get<2>(parsedSecret))}});
   }

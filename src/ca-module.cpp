@@ -56,7 +56,6 @@ CaModule::registerPrefix()
                                            bind(&CaModule::handleLocalhostList, this, _2),
                                            bind(&CaModule::onRegisterFailed, this, _2));
   m_registeredPrefixIds.push_back(prefixId);
-  _LOG_TRACE("Prefix " << localProbePrefix << " got registered");
 
   NDN_LOG_INFO("Prefix " << localProbePrefix << " got registered");
 
@@ -99,7 +98,6 @@ CaModule::registerPrefix()
                                               bind(&CaModule::handleList, this, _2, item));
           m_interestFilterIds.push_back(filterId);
         }
-        _LOG_TRACE("Prefix " << name << " got registered");
 
 	NDN_LOG_INFO("Prefix " << name << " got registered");
       },
@@ -286,7 +284,6 @@ void
 CaModule::handleProbe(const Interest& request, const CaItem& caItem)
 {
   // PROBE Naming Convention: /CA-prefix/CA/_PROBE/<Probe Information>
-  _LOG_TRACE("Handle PROBE request");
 
   NDN_LOG_INFO("<< I: PROBE: request from MT");
 
@@ -312,16 +309,14 @@ CaModule::handleProbe(const Interest& request, const CaItem& caItem)
   m_keyChain.sign(result, signingByIdentity(caItem.m_caName));
   m_face.put(result);
 
-  _LOG_TRACE("Handle PROBE: generate identity " << identityName);
 
-  NDN_LOG_INFO(">> D: PROBE: CA generates identity " << identityName << " and trasmits");
+  NDN_LOG_INFO(">> D: PROBE: CA acknowledges if certificate can be issued for requested name " << identityName);
 }
 
 void
 CaModule::handleNew(const Interest& request, const CaItem& caItem)
 {
   // NEW Naming Convention: /CA-prefix/CA/_NEW/<certificate-request>/[signature]
-  _LOG_TRACE("Handle NEW request");
 
   NDN_LOG_INFO("<< I: NEW: certificate request from MT");
 
@@ -393,7 +388,6 @@ CaModule::handleSelect(const Interest& request, const CaItem& caItem)
     _LOG_ERROR(e.what());
     return;
   }
-  _LOG_TRACE("SELECT request choosing challenge " << challengeType);
 
   NDN_LOG_INFO("<< I: SELECT: request, chooses challenge type " << challengeType);
 
@@ -422,7 +416,7 @@ CaModule::handleSelect(const Interest& request, const CaItem& caItem)
   m_keyChain.sign(result, signingByIdentity(caItem.m_caName));
   m_face.put(result);
 
-  NDN_LOG_INFO(">> D: SELECT: CA initializes challenge type " << challengeType << ". Create RN and encrypt with MT public key");
+  NDN_LOG_INFO(">> D: SELECT: CA initializes challenge type " << challengeType);
 
   if (caItem.m_statusUpdateCallback) {
     caItem.m_statusUpdateCallback(certRequest);
@@ -434,9 +428,8 @@ CaModule::handleValidate(const Interest& request, const CaItem& caItem)
 {
   // VALIDATE Naming Convention: /CA-prefix/CA/_VALIDATE/{Request-ID JSON}/<ChallengeID>/
   // {Param JSON}/[Signature components]
-  _LOG_TRACE("Handle VALIDATE request");
 
-  NDN_LOG_INFO("<< I: VALIDATE: request from MT containing RN to confirm if challenge is passed");
+  NDN_LOG_INFO("<< I: VALIDATE: request from MT containing RN2 to confirm if challenge is passed");
 
   CertificateRequest certRequest = getCertificateRequest(request, caItem.m_caName);
   if (certRequest.getRequestId().empty()) {
@@ -484,7 +477,6 @@ CaModule::handleValidate(const Interest& request, const CaItem& caItem)
     try {
       m_storage->addCertificate(certRequest.getRequestId(), issuedCert);
       m_storage->deleteRequest(certRequest.getRequestId());
-      _LOG_TRACE("New Certificate Issued " << issuedCert.getName());
       NDN_LOG_INFO("New Certificate Issued " << issuedCert.getName());
     }
     catch (const std::exception& e) {
@@ -529,7 +521,6 @@ void
 CaModule::handleDownload(const Interest& request, const CaItem& caItem)
 {
   // DOWNLOAD Naming Convention: /CA-prefix/CA/_DOWNLOAD/{Request-ID JSON}
-  _LOG_TRACE("Handle DOWNLOAD request");
 
   NDN_LOG_INFO("<< I: DOWNLOAD: request by MT for new certificate");
 
@@ -607,7 +598,6 @@ CaModule::issueCertificate(const CertificateRequest& certRequest, const CaItem& 
   newCert.setFreshnessPeriod(caItem.m_freshnessPeriod);
 
   m_keyChain.sign(newCert, signingInfo);
-  _LOG_TRACE("new cert got signed" << newCert);
   NDN_LOG_INFO("CA generates new certificate and signs " << newCert);
   return newCert;
 }
